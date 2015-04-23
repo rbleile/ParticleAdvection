@@ -1,0 +1,44 @@
+all: euler rk4 rkf45
+
+icc:
+	icc PA_Flow.C -g -Wall -o patedr
+
+euler: Mesh.h
+	g++ PA_Flow.C -o paFlowEuler
+
+rk4: Mesh.h
+	g++ PA_Flow.C -o paFlowRK4 -D RK4
+
+rkf45: Mesh.h
+	g++ PA_Flow.C -o paFlowRKF45 -D RKF45
+
+clean:
+	@rm paFlowEuler
+	@rm paFlowRK4
+	@rm paFlowRKF45
+
+clean-data: delete-data outputDir
+
+delete-data:
+	@rm -rf outputEULER
+	@rm -rf outputRK4
+	@rm -rf outputRKF45
+
+outputDir:
+	@mkdir outputEULER
+	@mkdir outputRK4
+	@mkdir outputRKF45
+
+check:
+	@./paFlowEuler
+	@./paFlowRK4
+	@./paFlowRKF45
+
+run-euler:
+	@./paFlowEuler
+
+run-rk4:
+	@./paFlowRK4
+
+run-rkf45:
+	@./paFlowRKF45
