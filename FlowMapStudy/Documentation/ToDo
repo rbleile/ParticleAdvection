@@ -1,0 +1,23 @@
+Research:
+
+Acceptable Flows:
+	- Determine if flow is acceptable is a better way
+		- Currently cannot use a flow that is on the edge of tw odomain boundaries even if the surrounding flows all follow a tight path.
+		- Created a checkerboard effect of acceptable flows
+
+Timing analysis of flow map versus straight advection:
+	- Amount of time advecting because of bad or no flow
+	- Amount of time flowing
+	- Time overstepping and reverse stepping versus forward stepping the last domain
+
+Accuracy studies:
+	- Particles position differences between flow map interpolation and advection in a single domain. ( domain face to domain face )
+	- FTLE of flow mapped particles versus FTLE of traditional advection only particles
+
+Parallelism:
+	- Uncover the parallel aspects of the now modified algorithm
+	- Data parallel primitive based flow map advection routine
+	- Data parallel primitive based build flow map routine
+	- ( OpenMP, CUDA, EAVL, etc... )
+
+Insitu Placement of flow map routine in M3D for FTLE analysis
