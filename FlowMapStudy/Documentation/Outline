@@ -1,0 +1,11 @@
+
+Processess
+
+
+Fine mesh creation. ( regular grid dimensions, origin, then velocity field )
+
+Uber Mesh creation. ( regular grid dimensions, origin, finemesh )
+
+Flow map built. ( advect particles from all domain faces until they leave the cell they start advecting in )
+
+
