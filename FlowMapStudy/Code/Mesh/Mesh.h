@@ -151,6 +151,8 @@ class Mesh
 	void getVelocity( Particle point, double *outVelocity );	
 	int Euler( double* bbox, double* mbb, double endTime, Particle &particle);
 	int RK4( double* bbox, double* mbb, double endTime, Particle &particle);
+	int REV_Euler( double* bbox, double* mbb, double endTime, Particle &particle);
+	int REV_RK4( double* bbox, double* mbb, double endTime, Particle &particle);
 	int onBoundary( Particle particle, double* bbox );
 
 };

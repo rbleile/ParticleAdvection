@@ -27,6 +27,7 @@ class DomainMesh
 	// Flows
 	Flow* flowField[3];
 	bool* AcceptableFlow[3];
+	//double* max_diff[3];
 
 	//Fine Grain Mesh
 	Mesh* mesh;
@@ -138,6 +139,7 @@ class DomainMesh
 	void setFlowsCellIDs();
 
 	int EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle );
+	int ReverseEulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle );
 
 	long int computeAllAcceptableFlows();
 

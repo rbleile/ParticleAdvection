@@ -249,7 +249,7 @@ VTKFilePrinter printer( umN, fmN, umD, fmD, orig, UberMesh.AcceptableFlow, "Tok"
 
 printer.printVtkDs();
 
-#if 0
+#if 1
 	cout << "Building Advection List" << endl;
 
 	long int numParticles = 1;

@@ -118,6 +118,22 @@ int DomainMesh::EulerCellAdvection( long int cellID, double endTime, double* bb,
 	return stat;
 } 
 
+int DomainMesh::ReverseEulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle )
+{
+	int stat = 1;
+
+	double cell_bb[6];
+	getCellBounds( cellID, cell_bb );
+
+	while( stat == 1 )
+	{
+		//stat = mesh->REV_Euler( cell_bb, bb, endTime, particle );
+		stat = mesh->REV_RK4( cell_bb, bb, endTime, particle );
+	}
+
+	return 0;
+} 
+
 long int DomainMesh::computeAllAcceptableFlows()
 {
 	long int acceptableFlows = 0;

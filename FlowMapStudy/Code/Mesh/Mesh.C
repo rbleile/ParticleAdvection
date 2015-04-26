@@ -388,12 +388,6 @@ int Mesh::onBoundary( Particle particle, double* bbox )
 inline int checkStep( Particle &particle, double endTime, double* bbox, double* mBB, double* vel, double dt )
 {
 
-	//Check if Steped to end of Time
-	if( particle.t >= endTime )
-    {
-        return 0;
-	}
-
 	if( !checkBoundary(particle, bbox) ){ 
 
 		int inMesh = checkBoundary(particle, mBB); // Check if particle has left mesh entirely
@@ -446,6 +440,12 @@ int Mesh::Euler( double* bbox, double* mbb, double endTime, Particle &particle )
     particle.z += vel[2]*dt;    
 
     particle.t += dt;
+
+	//Check if Steped to end of Time
+	if( particle.t >= endTime )
+    {
+        return 0;
+	}
 
 	return checkStep( particle, endTime, bbox, mbb, vel, dt );
 }
@@ -504,6 +504,77 @@ int Mesh::RK4( double* bbox, double* mbb, double endTime, Particle &particle )
     {
 		return 0;
     }
+
+	//Check if Steped to end of Time
+	if( particle.t >= endTime )
+    {
+        return 0;
+	}
+
+	return checkStep( particle, endTime, bbox, mbb, vel, dt ); 
+
+}
+
+int Mesh::REV_RK4( double* bbox, double* mbb, double endTime, Particle &particle )
+{
+    double k1[3];
+    double k2[3];
+    double k3[3];
+    double k4[3];
+
+    Particle rkpart = particle;
+	double dt = -1*particle.getStepSize();
+
+    if( particle.t + dt < endTime )
+    {
+        dt = particle.t - endTime;
+    }
+
+    getVelocity( rkpart, k1 );     
+
+    rkpart.x = particle.x + 0.5*k1[0]*dt;
+    rkpart.y = particle.y + 0.5*k1[1]*dt;
+    rkpart.z = particle.z + 0.5*k1[2]*dt;
+
+    getVelocity( rkpart, k2 ); 
+
+    rkpart.x = particle.x + 0.5*k2[0]*dt;
+    rkpart.y = particle.y + 0.5*k2[1]*dt;
+    rkpart.z = particle.z + 0.5*k2[2]*dt;
+
+    getVelocity( rkpart, k3 ); 
+    
+    rkpart.x = particle.x + k3[0]*dt;
+    rkpart.y = particle.y + k3[1]*dt;
+    rkpart.z = particle.z + k3[2]*dt;
+
+    getVelocity( rkpart, k4 ); 
+
+    rkpart.x = particle.x;
+    rkpart.y = particle.y;
+    rkpart.z = particle.z;
+
+	double vel[3] = {	(1.0/6.0)*( k1[0] + 2*k2[0] + 2*k3[0] + k4[0] ), 
+						(1.0/6.0)*( k1[1] + 2*k2[1] + 2*k3[1] + k4[1] ),
+						(1.0/6.0)*( k1[2] + 2*k2[2] + 2*k3[2] + k4[2] ) };
+
+    particle.x += vel[0]*dt;
+    particle.y += vel[1]*dt;
+    particle.z += vel[2]*dt;
+
+    particle.t += dt;
+
+	// In Sink
+    if( almostEqual( rkpart.x,particle.x) && almostEqual( rkpart.y,particle.y) && almostEqual( rkpart.z,particle.z) )
+    {
+		return 0;
+    }
+
+	//Check if Steped to end of Time
+	if( particle.t <= endTime )
+    {
+        return 0;
+	}
 
 	return checkStep( particle, endTime, bbox, mbb, vel, dt ); 
 

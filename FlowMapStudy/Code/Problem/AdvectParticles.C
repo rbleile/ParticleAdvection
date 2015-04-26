@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <iostream>
+#include <cmath>
 
 #include "AdvectParticles.h"
 
@@ -13,6 +14,8 @@
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::sqrt;
+using std::pow;
 
 long int GetParticleCellID( Mesh* FineMesh, DomainMesh *UberMesh, Particle* part )
 {
@@ -106,7 +109,7 @@ bool AcceptableFlow( long int cellID, DomainMesh *UberMesh, Mesh* FineMesh, Part
 
 }
 
-int AdvectParticleOnFlow( int cellID, Mesh *FineMesh, DomainMesh *UberMesh, Particle* part )
+int AdvectParticleOnFlow( int cellID, Mesh *FineMesh, DomainMesh *UberMesh, Particle* part, double endTime )
 {
 	int FID = part->FID;
 
@@ -204,6 +207,11 @@ int AdvectParticleOnFlow( int cellID, Mesh *FineMesh, DomainMesh *UberMesh, Part
 		part->z = z;
 		part->t += t;
 
+		if( t > endTime )
+		{
+			return 3;
+		}
+
 		return 1;
 
 	}
@@ -220,6 +228,9 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 
 	int numParticles = advectList->getNumParticles();
 
+	double max_distance = 0.0;
+
+	//#pragma omp parallel for
 	for( long int i = 0; i < numParticles; i++ ){
 
 		int status = 1;
@@ -249,10 +260,58 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 				int canFlow = AcceptableFlow( cellID, UberMesh, FineMesh, &particle );
 				if( canFlow )
 				{
-					GET_TIME( start_time );
-					AdvectParticleOnFlow( cellID, FineMesh, UberMesh, &particle );
+
+					cerr << endl;
+					cerr << "IN P:  " << particle.x << "\t" << particle.y << "\t" << particle.z << "\t" << particle.t << endl;
+					Particle copy;
+					copy.x = particle.x;
+					copy.y = particle.y;
+					copy.z = particle.z;
+					copy.t = particle.t;
+					copy.setStepSize( particle.getStepSize() );
+
+					GET_TIME( start_time ); 
+					status = UberMesh->EulerCellAdvection( cellID, endtime, MBB, copy ); 
 					GET_TIME( end_time );
+
+					double eulerTime = end_time-start_time;
+
+					GET_TIME( start_time );
+
+					status = AdvectParticleOnFlow( cellID, FineMesh, UberMesh, &particle, endtime );
+					if( status == 3 )
+					{
+						cerr << "REVERSE!!!" << endl;
+						double t = particle.t;
+						cellID = GetParticleCellID( FineMesh, UberMesh, &particle );
+						status = UberMesh->ReverseEulerCellAdvection( cellID, endtime, MBB, particle );
+						count += (int)(t-endtime)/STEPSIZE;
+					}	
+
+					GET_TIME( end_time );
+
 					AdvectionTime += end_time-start_time;
+
+					cerr << "OUT E: " << copy.x << "\t" << copy.y << "\t" << copy.z << "\t" << copy.t << endl;
+					cerr << "OUT A: " << particle.x << "\t" << particle.y << "\t" << particle.z << "\t" << particle.t << endl;
+					double distance = sqrt( pow( (particle.x-copy.x), 2 ) + pow( (particle.y-copy.y), 2 ) + pow( (particle.z-copy.z),2) );
+					
+					//#pragma omp critical
+					//{
+						if( distance > max_distance )
+						{
+							max_distance = distance;
+							cerr << "New Max Distance: " << max_distance << endl;
+						}
+					//}
+
+					cerr << "Distance: " << distance << endl;
+
+					cerr << "Diff:  " << (particle.x-copy.x) << "\t" << (particle.y-copy.y) << "\t" << (particle.z-copy.z) << "\t" << (particle.t-copy.t) << endl;
+					cerr << "%Diff: " << ((particle.x-copy.x) / copy.x)*100.0 << "%\t" << ((particle.y-copy.y) / copy.y)*100.0 << "%\t" << ((particle.z-copy.z) / copy.z)*100.0 << "%\t" << ((particle.t-copy.t) / copy.t)*100.0 << "%" << endl;
+					cerr << "Time E: " << eulerTime << endl;
+					cerr << "Time A: " << AdvectionTime << endl;
+
 					count++;
 				}
 				else
@@ -296,6 +355,8 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 
 		cerr << "Finished Particle at:" << endl;
 		cerr << particle.x << " " << particle.y << " " << particle.z  << " " << particle.t << endl;
+		cerr << "Max_Distance: " << max_distance << endl;
 		
 	}
+
 }
