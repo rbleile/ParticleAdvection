@@ -39,10 +39,6 @@ void VTKFilePrinter::printVtkDs()
 
 	for( int d = 0; d < 3; d++ )
 	{
-		//Rdims from Flow_Mesh.C	
-		//RMDim with 1 for ubers	
-		//Rdel from Flow_Mesh.C	
-		//Rpos from Flow_Mesh.C	
 		long int id_1 = (d+1)%3;
 		long int id_2 = (d+2)%3;
 

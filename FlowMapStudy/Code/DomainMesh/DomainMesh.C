@@ -1,11 +1,11 @@
-#include "Flow_Mesh.h"
+#include "DomainMesh.h"
 
-void Flow_Mesh::fillInFlows()
+void DomainMesh::fillInFlows()
 {
 
 	for( int d = 0; d < 3; d++ )
 	{
-		FMFlow* flows = flowField[d];
+		Flow* flows = flowField[d];
 
 		long int Rdims[3];
 		if( d == 0 )     { Rdims[0] = nx;		Rdims[1] = mesh->ny;	Rdims[2] = mesh->nz; }
@@ -39,7 +39,7 @@ void Flow_Mesh::fillInFlows()
 	}
 }
 
-void Flow_Mesh::setFlowsCellIDs()
+void DomainMesh::setFlowsCellIDs()
 {
 	double xmax = x0 + dx*(nx-1);
 	double ymax = y0 + dy*(ny-1);
@@ -47,7 +47,7 @@ void Flow_Mesh::setFlowsCellIDs()
 
 	for( int d = 0; d < 3; d++ )
 	{
-		FMFlow* flows = flowField[d];
+		Flow* flows = flowField[d];
 
 		long int Rdims[3];
 		if( d == 0 )     { Rdims[0] = nx;		Rdims[1] = mesh->ny; Rdims[2] = mesh->nz; }
@@ -63,13 +63,13 @@ void Flow_Mesh::setFlowsCellIDs()
 	
 					long int id = x_id + Rdims[0] * ( y_id + Rdims[1] * z_id );
 
-					FMPoint tp = flows[id].in;
+					Point tp = flows[id].in;
 
 					double dt = 0.001;
 					double vel[3];
 					mesh->getVelocity( tp, vel );
 
-					FMPoint np( tp.x + vel[0]*dt, tp.y + vel[1]*dt, tp.z + vel[2]*dt );	
+					Point np( tp.x + vel[0]*dt, tp.y + vel[1]*dt, tp.z + vel[2]*dt );	
 
 					if( np.x > xmax || np.x < x0 
 					 || np.y > ymax || np.y < y0
@@ -102,7 +102,7 @@ void Flow_Mesh::setFlowsCellIDs()
 
 #include <iomanip>
 
-int Flow_Mesh::EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle )
+int DomainMesh::EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle )
 {
 	int stat = 1;
 
@@ -118,7 +118,7 @@ int Flow_Mesh::EulerCellAdvection( long int cellID, double endTime, double* bb, 
 	return stat;
 } 
 
-long int Flow_Mesh::computeAllAcceptableFlows()
+long int DomainMesh::computeAllAcceptableFlows()
 {
 	long int acceptableFlows = 0;
 	long int no_count_face = 0;
@@ -158,7 +158,7 @@ long int Flow_Mesh::computeAllAcceptableFlows()
 		int d_id1 = (d + 1)%3;
 		int d_id2 = (d + 2)%3;
 
-		FMFlow* flows = flowField[d];
+		Flow* flows = flowField[d];
 
 		long int Rdims[3];
 		if( d == 0 )     { Rdims[0] = nx;		Rdims[1] = mesh->ny;	Rdims[2] = mesh->nz; }

@@ -1,10 +1,11 @@
-#ifndef FLOW_MESH_H
-#define FLOW_MESH_H
+#ifndef DOMAINMESH_H
+#define DOMAINMESH_H
 
 #include "Mesh.h"
-//#include "FlowMap.h"
+#include "Flow.h"
+#include "Particle.h"
 
-class Flow_Mesh
+class DomainMesh
 {
   public:
 
@@ -24,17 +25,17 @@ class Flow_Mesh
     double z0;
 
 	// Flows
-	FMFlow* flowField[3];
+	Flow* flowField[3];
 	bool* AcceptableFlow[3];
 
 	//Fine Grain Mesh
 	Mesh* mesh;
 
     //Mesh Empty Mesh Constructor
-    Flow_Mesh() : nx(0), ny(0), nz(0), dx(0), dy(0), dz(0), x0(0), y0(0), z0(0){};
+    DomainMesh() : nx(0), ny(0), nz(0), dx(0), dy(0), dz(0), x0(0), y0(0), z0(0){};
 
     //Mesh Regular Mesh Constructor
-    Flow_Mesh( long int num_x, long int num_y, long int num_z, double del_x, double del_y, double del_z, double x_p, double y_p, double z_p, Mesh* fineMesh ) 
+    DomainMesh( long int num_x, long int num_y, long int num_z, double del_x, double del_y, double del_z, double x_p, double y_p, double z_p, Mesh* fineMesh ) 
 		: nx(num_x), ny(num_y), nz(num_z), dx(del_x), dy(del_y), dz(del_z), x0(x_p), y0(y_p), z0(z_p), mesh( fineMesh ){};
 
      // Get the Cell ID for a given Point in a given coordinate

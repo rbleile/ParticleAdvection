@@ -1,4 +1,6 @@
-#include "FlowMap.h"
+#include "Flow.h"
+#include "Point.h"
+
 /***************************************************************************************
 *
 *  All Possible Cell mappings between points <-> faces and edges <-> faces within a cell
@@ -63,9 +65,7 @@ const int FaceToFace[6]= { 2, 3, 0, 1, 5, 4 };
 //Definition: which face lies on which boundry ( xmin, xmax, ymin, ymax, zmin, zmax )
 const int BoundsToFace[6] = { 3, 1, 0, 2, 4, 5 };
 
-const double epsilon = 0.0000001;
-
-inline bool operator==( const FMPoint &p1, const FMPoint &p2 )
+inline bool operator==( const Point &p1, const Point &p2 )
 {
 	if(
 	      fabs((p1.x-p2.x)) <= epsilon &&
@@ -81,7 +81,7 @@ inline bool operator==( const FMPoint &p1, const FMPoint &p2 )
 	}
 }
 
-inline bool operator!=( const FMPoint &p1, const FMPoint &p2 )
+inline bool operator!=( const Point &p1, const Point &p2 )
 {
 	return !(p1==p2);
 }
@@ -162,19 +162,19 @@ int computeFID( int* bb )
 	return -1;
 }
 
-void FMFlow::printFlow( ostream &stream )
+void Flow::printFlow( ostream &stream )
 {
 	stream << "CellID: " << cellID << "\t";
 	stream << "FID: " << FID << "\t";
 	stream << "In Point: < X: " << in.x << ", Y: " << in.y << ", Z: " << in.z << ", T: " << in.t << " > " << "\t";
 	stream << "Out Point: < X: " << out.x << ", Y: " << out.y << ", Z: " << out.z << ", T: " << out.t << " > " << endl;
 }
-void FMFlow::setPositions( double x, double y, double z )
+void Flow::setPositions( double x, double y, double z )
 {
 	in.setPoint( x, y, z );
 	out.setPoint( x, y, z );
 }
-void FMFlow::setFID( double* bbox )
+void Flow::setFID( double* bbox )
 {
 	int bb[6] = {0,0,0,0,0,0};
 

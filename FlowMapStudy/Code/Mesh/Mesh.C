@@ -1,5 +1,6 @@
 //Local Includes
 #include "Mesh.h"
+#include "Flow.h"
 
 //Library Includes
 #include <cmath>
@@ -32,8 +33,6 @@ using std::max;
 #else
 #define debug true
 #endif
-
-extern const double epsilon;
 
 //Function for checking floating point equvalence to epsilon error
 inline bool almostEqual( float p1, float p2 )
@@ -89,6 +88,7 @@ void Mesh::getVelocity( Particle point, double *outVelocity ){
 
 	if( pid000[0] > nx-2 || pid000[1] > ny-2 || pid000[2] > nz-2 )
 	{
+
 /*
 		cerr << "getVelocity: Error: pid out of bounds" << endl;
 		cerr << nx-2 << " " << ny-2 << " " << nz-2 << endl;
@@ -96,6 +96,7 @@ void Mesh::getVelocity( Particle point, double *outVelocity ){
 		cerr << "PID:      " << pid000[0] << " " << pid000[1] << " " << pid000[2] << endl;
 		cerr << "Why!!" << endl;
 */
+
 		outVelocity[0] = 0;
 		outVelocity[1] = 0;
 		outVelocity[2] = 0;
@@ -157,7 +158,8 @@ void Mesh::getVelocity( Particle point, double *outVelocity ){
 
 }
 
-void Mesh::getVelocity( FMPoint point, double *outVelocity ){
+void Mesh::getVelocity( Point point, double *outVelocity )
+{
 
 	long int pid000[3];
 	double px = point.x;

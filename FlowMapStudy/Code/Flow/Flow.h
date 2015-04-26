@@ -2,13 +2,48 @@
 #include <iostream>
 #include <cmath>
 
+#include "Point.h"
+
 using std::ostream;
 using std::cerr;
 using std::endl;
 using std::fabs;
 
+#ifndef FLOW_H
+#define FLOW_H
+
+extern const int PointsToFaces[8][3];
+extern const int FacesToPoints[6][4];
+extern const int EdgesToFaces[12][2];
+extern const int FacesToEdges[6][4];
+extern const int FaceToFace[6];
+extern const int BoundsToFace[6];
+
+/**************************************************************************************************
+ *	Flow
+ *		Holds the in point, out point, for a flow
+ *		the cellID a flow goes through
+ *		the FID a flow exits
+**************************************************************************************************/
+class Flow
+{
+  public:
+	Point in;
+	Point out;
+	long int cellID;
+	int FID;
+
+	Flow(){ cellID = -1; FID = -1; };
+	void printFlow( ostream &stream );
+	void setPositions( double x, double y, double z );
+	void setFID( double* bbox );
+};
+
+#endif
 
 /*
+ *
+Some Comments and diagrams during coding this all up
 
 FID:
 	0 - 5:   Face
@@ -81,12 +116,6 @@ Euler funciton
 		step back to boundry
 		goto particle location check 1
 
-
-*/
-
-
-
-/*
 
 [ Point / Edge / Face ] Lables
 
@@ -204,95 +233,3 @@ Face IDS 6 [0-5]:
         
         
 */
-
-extern const double epsilon;
-extern const int PointsToFaces[8][3];
-extern const int FacesToPoints[6][4];
-extern const int EdgesToFaces[12][2];
-extern const int FacesToEdges[6][4];
-extern const int FaceToFace[6];
-extern const int BoundsToFace[6];
-
-
-/**************************************************************************************************
- *	FMPoint
- *		Holds the X,Y,Z,T for the end points of a flow
-**************************************************************************************************/
-#ifndef FMPOINT
-#define FMPOINT
-
-class FMPoint
-{
-  public:
-	double x;
-	double y;
-	double z;
-	double t;
-
-	FMPoint()
-	{
-		x = 0.0;
-		y = 0.0;
-		z = 0.0;
-		t = 0.0;
-	}
-
-	FMPoint( double ix, double iy, double iz )
-	{
-		x = ix;
-		y = iy;
-		z = iz;
-		t = 0.0;
-	}
-
-	FMPoint( double ix, double iy, double iz, double it )
-	{
-		x = ix;
-		y = iy;
-		z = iz;
-		t = it;
-	}
-
-	void setPoint( double ix, double iy, double iz )
-	{
-		x = ix;
-		y = iy;
-		z = iz;
-	}
-
-	void setPoint( double ix, double iy, double iz, double it )
-	{
-		x = ix;
-		y = iy;
-		z = iz;
-		t = it;
-	}
-		
-};
-
-#endif
-
-#ifndef FMFLOW
-#define FMFLOW
-/**************************************************************************************************
- *	FMFlow
- *		Holds the in point, out point, for a flow
- *		the cellID a flow goes through
- *		the FID a flow exits
-**************************************************************************************************/
-class FMFlow
-{
-  public:
-	FMPoint in;
-	FMPoint out;
-	long int cellID;
-	int FID;
-
-	FMFlow(){ cellID = -1; FID = -1; };
-	void printFlow( ostream &stream );
-	void setPositions( double x, double y, double z );
-	void setFID( double* bbox );
-};
-
-#endif
-

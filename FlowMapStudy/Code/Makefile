@@ -1,57 +1,97 @@
-all: clear euler1 euler2
+#CPP_COMPILER=g++
+CPP_COMPILER=icpc
 
-euler1: PA_Flow.C Flow_Mesh.o Mesh.o ParticleList.o Particle.o FlowMap.o PrintVTK.o
-	g++ -O2 PA_Flow.C Flow_Mesh.o Mesh.o ParticleList.o Particle.o FlowMap.o PrintVTK.o -o paCustom.out
+#OPLVL=-g
+#OPLVL=-O0
+#OPLVL=-O1
+OPLVL=-O2
+#OPLVL=-O3
 
-euler2: PA_Tokamak.C Flow_Mesh.o Mesh.o ParticleList.o Particle.o FlowMap.o PrintVTK.o
-	g++ -O2 PA_Tokamak.C Flow_Mesh.o Mesh.o ParticleList.o Particle.o FlowMap.o PrintVTK.o -o paTokamak.out
+COMPILE_FLAGS=-fopenmp
 
-PrintVTK.o: PrintVTK.h PrintVTK.C Flow_Mesh.h
-	g++ -O2 -c PrintVTK.C -o PrintVTK.o
+INCLUDE_DIRS=-IDomainMesh/ -IFlow/ -IMesh/ -IParticle/ -IParticleContainer/ -IPrintVTK/ -IProblem/
 
-FlowMap.o: FlowMap.C FlowMap.h
-	g++ -O2 -c FlowMap.C -o FlowMap.o
+tokC=Problem/PA_Tokamak.C
 
-Particle.o: MeshParticle.C MeshParticle.h FlowMap.h FlowMap.o
-	g++ -O2 -c MeshParticle.C -o Particle.o
+domC=DomainMesh/DomainMesh.C
+domH=DomainMesh/DomainMesh.h
+domO=DomainMesh/DomainMesh.o
 
-ParticleList.o: MeshParticleList.C MeshParticleList.h MeshParticle.h Particle.o
-	g++ -O2 -c MeshParticleList.C -o ParticleList.o
+meshC=Mesh/Mesh.C
+meshH=Mesh/Mesh.h
+meshO=Mesh/Mesh.o
 
-Mesh.o: Mesh.C Mesh.h MeshParticle.h MeshParticleList.h ParticleList.o Particle.o
-	g++ -O2 -c Mesh.C -o Mesh.o
+parC=Particle/Particle.C
+parH=Particle/Particle.h
+parO=Particle/Particle.o
 
-Flow_Mesh.o: Flow_Mesh.C Flow_Mesh.h FlowMap.h Mesh.h Mesh.o
-	g++ -O2 -c Flow_Mesh.C -o Flow_Mesh.o 
+pcnC=ParticleContainer/ParticleContainer.C
+pcnH=ParticleContainer/ParticleContainer.h
+pcnO=ParticleContainer/ParticleContainer.o
 
-debug: clear euler1d euler2d
+ptkC=PrintVTK/PrintVTK.C
+ptkH=PrintVTK/PrintVTK.h
+ptkO=PrintVTK/PrintVTK.o
 
-euler1d: PA_Flow.C Flow_Meshd.o Meshd.o ParticleListd.o Particled.o FlowMapd.o PrintVTKd.o
-	g++ -g PA_Flow.C Flow_Meshd.o Meshd.o ParticleListd.o Particled.o FlowMapd.o PrintVTKd.o -o paCustom.out
+floC=Flow/Flow.C
+floH=Flow/Flow.h
+floO=Flow/Flow.o
 
-euler2d: PA_Tokamak.C Flow_Meshd.o Meshd.o ParticleListd.o Particled.o FlowMapd.o PrintVTKd.o
-	g++ -g PA_Tokamak.C Flow_Meshd.o Meshd.o ParticleListd.o Particled.o FlowMapd.o PrintVTKd.o -o paTokamak.out
+pntC=Flow/Point.C
+pntH=Flow/Point.h
+pntO=Flow/Point.o
 
-PrintVTKd.o: PrintVTK.h PrintVTK.C Flow_Mesh.h
-	g++ -g -c PrintVTK.C -o PrintVTKd.o
+avpC=Problem/AdvectParticles.C
+avpH=Problem/AdvectParticles.h
+avpO=Problem/AdvectParticles.o
 
-FlowMapd.o: FlowMap.C FlowMap.h
-	g++ -g -c FlowMap.C -o FlowMapd.o
+OBJ=\
+	$(ptkO) \
+	$(avpO) \
+	$(domO) \
+	$(meshO) \
+	$(pcnO) \
+	$(floO) \
+	$(parO) \
+	$(pntO) 
 
-Particled.o: MeshParticle.C MeshParticle.h FlowMap.h FlowMapd.o
-	g++ -g -c MeshParticle.C -o Particled.o
+EPSILON=0.0000001
 
-ParticleListd.o: MeshParticleList.C MeshParticleList.h MeshParticle.h Particled.o
-	g++ -g -c MeshParticleList.C -o ParticleListd.o
+STEPSIZE=0.001
 
-Meshd.o: Mesh.C Mesh.h MeshParticle.h MeshParticleList.h ParticleListd.o Particled.o
-	g++ -g -c Mesh.C -o Meshd.o
+VARS=-Depsilon=$(EPSILON) -DSTEPSIZE=$(STEPSIZE)
 
-Flow_Meshd.o: Flow_Mesh.C Flow_Mesh.h FlowMap.h Mesh.h Meshd.o
-	g++ -g -c Flow_Mesh.C -o Flow_Meshd.o 
+all: Tokamak 
 
+Tokamak: $(tokC) $(OBJ)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(tokC) $(OBJ) -o runTokamak.out
+
+$(ptkO): $(ptkH) $(ptkC)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) -c $(ptkC) -o $(ptkO)
+
+$(avpO): $(avpH) $(avpC) $(domO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(avpC) $(domO) -o $(avpO)
+
+$(domO): $(domH) $(domC) $(pcnO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(domC) $(pcnO) -o $(domO)
+
+$(pcnO): $(pcnH) $(pcnC) $(meshO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(pcnC) $(meshO) -o $(pcnO) 
+
+$(meshO): $(meshH) $(meshC) $(floO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(meshC) $(floO) -o $(meshO)
+
+$(floO): $(floH) $(floC) $(parO) 
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(floC) $(parO) -o $(floO) 
+
+$(parO): $(parH) $(parC) $(pntO) 
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(parC) $(pntO) -o $(parO)
+
+$(pntO): $(pntH) $(pntC)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) -c $(pntC) -o $(pntO)
+	
 clean:
-	@rm *.o *.out
+	@rm */*.o *.out
 
 cvtk:
 	@rm *.vtk

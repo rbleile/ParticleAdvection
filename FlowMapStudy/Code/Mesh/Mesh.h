@@ -1,5 +1,5 @@
-#include "MeshParticle.h"
-#include "MeshParticleList.h"
+#include "Particle.h"
+#include "Flow.h"
 
 #ifndef MESH_H
 #define MESH_H
@@ -147,7 +147,7 @@ class Mesh
 
 
 	//Advection Functions
-	void getVelocity( FMPoint point, double *outVelocity );	
+	void getVelocity( Point point, double *outVelocity );	
 	void getVelocity( Particle point, double *outVelocity );	
 	int Euler( double* bbox, double* mbb, double endTime, Particle &particle);
 	int RK4( double* bbox, double* mbb, double endTime, Particle &particle);
