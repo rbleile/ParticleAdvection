@@ -8,6 +8,7 @@
 void BuildParticleContainerFullX2( Mesh* mesh, Particle *pl, long int &numP );
 void BuildParticleContainerFull( Mesh* mesh, Particle *pl, long int &numP );
 void BuildParticleContainerOne( Particle* &pl );
+void BuildParticleContainerTwo( Particle* &pl );
 
 class ParticleContainer
 {

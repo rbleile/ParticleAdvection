@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <iostream>
 #include <cmath>
+#include <sstream>
+#include <cstring>
 
 #include "AdvectParticles.h"
 
@@ -16,6 +18,8 @@ using std::cout;
 using std::endl;
 using std::sqrt;
 using std::pow;
+using std::string;
+using std::stringstream;
 
 long int GetParticleCellID( Mesh* FineMesh, DomainMesh *UberMesh, Particle* part )
 {
@@ -230,7 +234,7 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 
 	double max_distance = 0.0;
 
-	//#pragma omp parallel for
+//	#pragma omp parallel for
 	for( long int i = 0; i < numParticles; i++ ){
 
 		int status = 1;
@@ -261,8 +265,9 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 				if( canFlow )
 				{
 
-					cerr << endl;
-					cerr << "IN P:  " << particle.x << "\t" << particle.y << "\t" << particle.z << "\t" << particle.t << endl;
+					stringstream printLine;
+					printLine << endl;
+					printLine << "IN P:  " << particle.x << "\t" << particle.y << "\t" << particle.z << "\t" << particle.t << endl;
 					Particle copy;
 					copy.x = particle.x;
 					copy.y = particle.y;
@@ -281,7 +286,7 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 					status = AdvectParticleOnFlow( cellID, FineMesh, UberMesh, &particle, endtime );
 					if( status == 3 )
 					{
-						cerr << "REVERSE!!!" << endl;
+						printLine << "REVERSE!!!" << endl;
 						double t = particle.t;
 						cellID = GetParticleCellID( FineMesh, UberMesh, &particle );
 						status = UberMesh->ReverseEulerCellAdvection( cellID, endtime, MBB, particle );
@@ -292,8 +297,8 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 
 					AdvectionTime += end_time-start_time;
 
-					cerr << "OUT E: " << copy.x << "\t" << copy.y << "\t" << copy.z << "\t" << copy.t << endl;
-					cerr << "OUT A: " << particle.x << "\t" << particle.y << "\t" << particle.z << "\t" << particle.t << endl;
+					printLine << "OUT E: " << copy.x << "\t" << copy.y << "\t" << copy.z << "\t" << copy.t << endl;
+					printLine << "OUT A: " << particle.x << "\t" << particle.y << "\t" << particle.z << "\t" << particle.t << endl;
 					double distance = sqrt( pow( (particle.x-copy.x), 2 ) + pow( (particle.y-copy.y), 2 ) + pow( (particle.z-copy.z),2) );
 					
 					//#pragma omp critical
@@ -301,16 +306,19 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 						if( distance > max_distance )
 						{
 							max_distance = distance;
-							cerr << "New Max Distance: " << max_distance << endl;
+							printLine << "New Max Distance: " << max_distance << endl;
 						}
 					//}
 
-					cerr << "Distance: " << distance << endl;
+					printLine << "Distance: " << distance << endl;
 
-					cerr << "Diff:  " << (particle.x-copy.x) << "\t" << (particle.y-copy.y) << "\t" << (particle.z-copy.z) << "\t" << (particle.t-copy.t) << endl;
-					cerr << "%Diff: " << ((particle.x-copy.x) / copy.x)*100.0 << "%\t" << ((particle.y-copy.y) / copy.y)*100.0 << "%\t" << ((particle.z-copy.z) / copy.z)*100.0 << "%\t" << ((particle.t-copy.t) / copy.t)*100.0 << "%" << endl;
-					cerr << "Time E: " << eulerTime << endl;
-					cerr << "Time A: " << AdvectionTime << endl;
+					printLine << "Diff:  " << (particle.x-copy.x) << "\t" << (particle.y-copy.y) << "\t" << (particle.z-copy.z) << "\t" << (particle.t-copy.t) << endl;
+					printLine << "%Diff: " << ((particle.x-copy.x) / copy.x)*100.0 << "%\t" << ((particle.y-copy.y) / copy.y)*100.0 << "%\t" << ((particle.z-copy.z) / copy.z)*100.0 << "%\t" << ((particle.t-copy.t) / copy.t)*100.0 << "%" << endl;
+					printLine << "Time E: " << eulerTime << endl;
+					printLine << "Time A: " << AdvectionTime << endl;
+
+					string pline = printLine.str();
+					//fprintf( stderr, "%s", pline.c_str());
 
 					count++;
 				}
@@ -347,15 +355,21 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 			status = ( particle.t >= endtime ) ? 0 : status;
 		}	
 
-		cout << "Advection Time: " << AdvectionTime << endl;
-		cout << "Euler Time: " << EulerTime << endl;
-		cout << "EndTime: " << particle.t << endl;
-		cout << "Count:       " << count << endl;
-		cout << "Total Euler: " << endtime/STEPSIZE << endl;
+		stringstream printLine;
 
-		cerr << "Finished Particle at:" << endl;
-		cerr << particle.x << " " << particle.y << " " << particle.z  << " " << particle.t << endl;
-		cerr << "Max_Distance: " << max_distance << endl;
+		printLine << "Advection Time: " << AdvectionTime << endl;
+		printLine << "Euler Time: " << EulerTime << endl;
+		printLine << "EndTime: " << particle.t << endl;
+		printLine << "Count:       " << count << endl;
+		printLine << "Total Euler: " << endtime/STEPSIZE << endl;
+
+		printLine << "Finished Particle at:" << endl;
+		printLine << particle.x << " " << particle.y << " " << particle.z  << " " << particle.t << endl;
+		printLine << "Max_Distance: " << max_distance << endl;
+
+		string pline = printLine.str();
+
+		//fprintf( stdout, "%s", pline.c_str() );
 		
 	}
 

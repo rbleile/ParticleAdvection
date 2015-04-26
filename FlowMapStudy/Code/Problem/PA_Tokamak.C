@@ -255,12 +255,14 @@ printer.printVtkDs();
 	long int numParticles = 1;
 	Particle* advectionList;
 
-	BuildParticleContainerOne( advectionList );
+//	BuildParticleContainerOne( advectionList );
+	BuildParticleContainerTwo( advectionList );
 //	BuildParticleContainerFull( &FineMesh, advectionList, numParticles );
 //	BuildParticleContainerFullX2( &FineMesh, advectionList, numParticles );
 
 	ParticleContainer advectList( advectionList, numParticles );
 
+	cout << "Advecting Particle List" << endl;
 	AdvectParticleList( &FineMesh, &UberMesh, &advectList, ENDTIME, BoundBox );
 
 #endif

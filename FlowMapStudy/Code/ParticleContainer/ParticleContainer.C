@@ -103,3 +103,17 @@ void BuildParticleContainerOne( Particle* &pl )
 	pl[0].setStepSize( STEPSIZE );
 }
 
+void BuildParticleContainerTwo( Particle* &pl )
+{
+	pl = new Particle [2];
+	pl[0].x = 1.0;
+	pl[0].y = 1.0;
+	pl[0].z = 1.0;
+	pl[0].setStepSize( STEPSIZE );
+
+	pl[1].x = -1.0;
+	pl[1].y = -1.0;
+	pl[1].z = -1.0;
+	pl[1].setStepSize( STEPSIZE );
+}
+
