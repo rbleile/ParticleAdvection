@@ -64,7 +64,7 @@ VARS=-Depsilon=$(EPSILON) -DSTEPSIZE=$(STEPSIZE)
 all: Tokamak 
 
 Tokamak: $(tokC) $(OBJ)
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(tokC) $(OBJ) -o runTokamak.out
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(tokC) $(OBJ) -o bin/runTokamak.out
 
 $(ptkO): $(ptkH) $(ptkC)
 	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) -c $(ptkC) -o $(ptkO)
@@ -91,7 +91,7 @@ $(pntO): $(pntH) $(pntC)
 	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) -c $(pntC) -o $(pntO)
 	
 clean:
-	@rm */*.o *.out
+	@rm */*.o bin/*.out
 
 cvtk:
 	@rm *.vtk
