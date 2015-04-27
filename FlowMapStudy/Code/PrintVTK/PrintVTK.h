@@ -17,11 +17,12 @@ class VTKFilePrinter
 	double Fdel[3];
 	double origin[3];
 	bool **data;
+	double **diff;
 	string baseName;
 	
   public:
 	
-	VTKFilePrinter( int u[], int f[], double ud[], double fd[], double x[], bool ** d, string s )
+	VTKFilePrinter( int u[], int f[], double ud[], double fd[], double x[], bool ** db, double** dd, string s )
 	{
 		Udims[0] = u[0];
 		Udims[1] = u[1];
@@ -41,7 +42,8 @@ class VTKFilePrinter
 		origin[1] = x[1];
 		origin[2] = x[2];
 
-		data = d;
+		data = db;
+		diff = dd;
 
 		baseName = s;
 	}

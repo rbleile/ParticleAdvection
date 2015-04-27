@@ -21,9 +21,31 @@ using std::pow;
 using std::string;
 using std::stringstream;
 
-long int GetParticleCellID( Mesh* FineMesh, DomainMesh *UberMesh, Particle* part )
+const int FacesToFaces[6]= { 2, 3, 0, 1, 5, 4 };
+inline int checkBoundary( Particle particle, double* bbox )
 {
+
+    if( particle.x > bbox[0] && particle.x < bbox[1] &&
+        particle.y > bbox[2] && particle.y < bbox[3] &&
+        particle.z > bbox[4] && particle.z < bbox[5] )
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+long int GetParticleCellID( Mesh* FineMesh, DomainMesh *UberMesh, Particle* part, double* MBB)
+{
+	
+	if( !checkBoundary( *part, MBB ))
+	{
+		return -1;
+	}
+	
 	double vel[3];
+	
 	FineMesh->getVelocity( *part, vel );
 
 	double xmax = FineMesh->x0 + FineMesh->dx*(FineMesh->nx-1);
@@ -31,6 +53,7 @@ long int GetParticleCellID( Mesh* FineMesh, DomainMesh *UberMesh, Particle* part
 	double zmax = FineMesh->z0 + FineMesh->dz*(FineMesh->nz-1);
 
 	Point np( part->x + vel[0]*STEPSIZE, part->y + vel[1]*STEPSIZE, part->z + vel[2]*STEPSIZE );
+
 
 	long int cellID = -1;
 
@@ -113,7 +136,7 @@ bool AcceptableFlow( long int cellID, DomainMesh *UberMesh, Mesh* FineMesh, Part
 
 }
 
-int AdvectParticleOnFlow( int cellID, Mesh *FineMesh, DomainMesh *UberMesh, Particle* part, double endTime )
+int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh, Particle* part, double endTime, double* MBB )
 {
 	int FID = part->FID;
 
@@ -127,6 +150,15 @@ int AdvectParticleOnFlow( int cellID, Mesh *FineMesh, DomainMesh *UberMesh, Part
 
 	if( FID < 6 )
 	{
+
+					Particle copy;
+					copy.x = part->x;
+					copy.y = part->y;
+					copy.z = part->z;
+					copy.t = part->t;
+					copy.setStepSize( part->getStepSize() );
+					UberMesh->EulerCellAdvection( cellID, endTime, MBB, copy ); 
+
 		d = (( FID == 1 || FID == 3) ? 0 : ( ( FID == 0 || FID == 2  ) ? 1  : 2 ) );
 
 		long int Rdim[3];
@@ -200,9 +232,17 @@ int AdvectParticleOnFlow( int cellID, Mesh *FineMesh, DomainMesh *UberMesh, Part
 		z = Z01 + fracD2 * ( Z23-Z01 );
 		t = T01 + fracD2 * ( T23-T01 );
 	
+		//If no time change in advection
 		if( tt == t )
 		{
 			std::cerr << "dt = 0 " << std::endl;
+			return 0;
+		}
+
+		//If the interpolation will put us past the end time and half of the time difference is greater then end time just euler to finish
+		if( (tt + t > endTime) && (tt + (t/2.0) > endTime) )
+		{
+			UberMesh->EulerCellAdvection( cellID, endTime, MBB, *part); 
 			return 0;
 		}
 
@@ -211,9 +251,55 @@ int AdvectParticleOnFlow( int cellID, Mesh *FineMesh, DomainMesh *UberMesh, Part
 		part->z = z;
 		part->t += t;
 
-		if( t > endTime )
+		// If the interpolation step has put us past the end time then euler backwards to get to end time.
+		if( part->t > endTime )
 		{
-			return 3;
+			t = part->t;
+			UberMesh->ReverseEulerCellAdvection( cellID, endTime, MBB, *part );
+			return 0;
+		}
+
+		//Compute the face we  landed on
+		ComputeFaceID( cellID, UberMesh, part );
+
+		int FID2 = part->FID;
+
+		//Using the face we landed on determine which cell we should advect too next
+		if( FID2 >= 0 && FID2 < 6 )
+		{
+			double t_bb[6];
+			UberMesh->getCellBounds( cellID, t_bb );
+			if( FID2 == 0 || FID2 == 2 )
+			{
+				part->x = UberMesh->x0 + UberMesh->dx*( ( FID2 == 0 ) ? Uids[0]  : Uids[0]+1 );
+			}
+			else if( FID2 == 1 || FID2 == 3 )
+			{
+				part->y = UberMesh->y0 + UberMesh->dy*( ( FID2 == 3 ) ? Uids[1]  : Uids[1]+1 );
+			}
+			else if( FID2 == 4 || FID2 == 5 )
+			{
+				part->z = UberMesh->z0 + UberMesh->dz*( ( FID2 == 4 ) ? Uids[2]  : Uids[2]+1 );
+			}
+	
+			cellID += ( ( FID2 == 0 ) ?  -(UberMesh->nx) : ( FID2 == 1 ) ?  1 : ( FID2 == 2 ) ? (UberMesh->nx) : ( FID2 == 3 ) ? -1 : ( FID2 == 4 ) ? -(UberMesh->nx*UberMesh->ny) : ( UberMesh->nx*UberMesh->ny) );	
+			
+		}
+		else //We dont handle edge cases yet
+			return 2;
+
+		long int dcell_id = x_id + (Rdim[0]-1) * ( y_id + ( (Rdim[1]-1) * z_id ) );
+		
+		double distance = sqrt( pow( (part->x-copy.x), 2 ) + pow( (part->y-copy.y), 2 ) + pow( (part->z-copy.z),2) );
+
+		double* max_diff = UberMesh->max_diff[d];
+
+		#pragma omp critical
+		{
+			if( distance > max_diff[dcell_id] );
+			{
+				max_diff[dcell_id] = distance;
+			}
 		}
 
 		return 1;
@@ -234,13 +320,18 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 
 	double max_distance = 0.0;
 
-//	#pragma omp parallel for
+	#pragma omp parallel for
 	for( long int i = 0; i < numParticles; i++ ){
+
+		cerr << endl;
+		cerr << "-----------------------------";
+		cerr << "Particle " << i+1 << " / " << numParticles << " ";
+		cerr << "-----------------------------" << endl;
 
 		int status = 1;
 		Particle &particle = advectList->particle[i];
 
-		long int cellID = GetParticleCellID( FineMesh, UberMesh, &particle );
+		long int cellID = GetParticleCellID( FineMesh, UberMesh, &particle,MBB );
 		double cbb[6];
 
 		if( cellID == -1 ) continue; //Particle Seeded outside of Mesh ( Skip it )
@@ -258,6 +349,7 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 
 		while( status )
 		{	
+
 			if( onCellFace )
 			{
 				ComputeFaceID( cellID, UberMesh, &particle );
@@ -265,60 +357,13 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 				if( canFlow )
 				{
 
-					stringstream printLine;
-					printLine << endl;
-					printLine << "IN P:  " << particle.x << "\t" << particle.y << "\t" << particle.z << "\t" << particle.t << endl;
-					Particle copy;
-					copy.x = particle.x;
-					copy.y = particle.y;
-					copy.z = particle.z;
-					copy.t = particle.t;
-					copy.setStepSize( particle.getStepSize() );
-
-					GET_TIME( start_time ); 
-					status = UberMesh->EulerCellAdvection( cellID, endtime, MBB, copy ); 
-					GET_TIME( end_time );
-
-					double eulerTime = end_time-start_time;
-
 					GET_TIME( start_time );
 
-					status = AdvectParticleOnFlow( cellID, FineMesh, UberMesh, &particle, endtime );
-					if( status == 3 )
-					{
-						printLine << "REVERSE!!!" << endl;
-						double t = particle.t;
-						cellID = GetParticleCellID( FineMesh, UberMesh, &particle );
-						status = UberMesh->ReverseEulerCellAdvection( cellID, endtime, MBB, particle );
-						count += (int)(t-endtime)/STEPSIZE;
-					}	
+					status = AdvectParticleOnFlow( cellID, FineMesh, UberMesh, &particle, endtime, MBB );
 
 					GET_TIME( end_time );
 
 					AdvectionTime += end_time-start_time;
-
-					printLine << "OUT E: " << copy.x << "\t" << copy.y << "\t" << copy.z << "\t" << copy.t << endl;
-					printLine << "OUT A: " << particle.x << "\t" << particle.y << "\t" << particle.z << "\t" << particle.t << endl;
-					double distance = sqrt( pow( (particle.x-copy.x), 2 ) + pow( (particle.y-copy.y), 2 ) + pow( (particle.z-copy.z),2) );
-					
-					//#pragma omp critical
-					//{
-						if( distance > max_distance )
-						{
-							max_distance = distance;
-							printLine << "New Max Distance: " << max_distance << endl;
-						}
-					//}
-
-					printLine << "Distance: " << distance << endl;
-
-					printLine << "Diff:  " << (particle.x-copy.x) << "\t" << (particle.y-copy.y) << "\t" << (particle.z-copy.z) << "\t" << (particle.t-copy.t) << endl;
-					printLine << "%Diff: " << ((particle.x-copy.x) / copy.x)*100.0 << "%\t" << ((particle.y-copy.y) / copy.y)*100.0 << "%\t" << ((particle.z-copy.z) / copy.z)*100.0 << "%\t" << ((particle.t-copy.t) / copy.t)*100.0 << "%" << endl;
-					printLine << "Time E: " << eulerTime << endl;
-					printLine << "Time A: " << AdvectionTime << endl;
-
-					string pline = printLine.str();
-					//fprintf( stderr, "%s", pline.c_str());
 
 					count++;
 				}
@@ -346,31 +391,22 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 
 			if( status == 2 )
 			{
-				cellID = GetParticleCellID( FineMesh, UberMesh, &particle ); 
-				ComputeFaceID( cellID, UberMesh, &particle );
-				onCellFace = 1;
+				cellID = GetParticleCellID( FineMesh, UberMesh, &particle, MBB ); 
+				if( cellID == -1 )
+				{
+					status = 0;
+				}
+				else{
+					ComputeFaceID( cellID, UberMesh, &particle );
+					onCellFace = 1;
+				}
 			}
-
 
 			status = ( particle.t >= endtime ) ? 0 : status;
 		}	
 
-		stringstream printLine;
+		fprintf(stderr,  "Particle Complete in: %g (seconds)", AdvectionTime+EulerTime );
 
-		printLine << "Advection Time: " << AdvectionTime << endl;
-		printLine << "Euler Time: " << EulerTime << endl;
-		printLine << "EndTime: " << particle.t << endl;
-		printLine << "Count:       " << count << endl;
-		printLine << "Total Euler: " << endtime/STEPSIZE << endl;
-
-		printLine << "Finished Particle at:" << endl;
-		printLine << particle.x << " " << particle.y << " " << particle.z  << " " << particle.t << endl;
-		printLine << "Max_Distance: " << max_distance << endl;
-
-		string pline = printLine.str();
-
-		//fprintf( stdout, "%s", pline.c_str() );
-		
 	}
 
 }

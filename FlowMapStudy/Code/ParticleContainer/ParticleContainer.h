@@ -5,10 +5,11 @@
 #ifndef PARTICLECONTAINER_H
 #define PARTICLECONTAINER_H
 
-void BuildParticleContainerFullX2( Mesh* mesh, Particle *pl, long int &numP );
-void BuildParticleContainerFull( Mesh* mesh, Particle *pl, long int &numP );
+void BuildParticleContainerFullX2( Mesh* mesh, Particle* &pl, long int &numP );
+void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP );
 void BuildParticleContainerOne( Particle* &pl );
 void BuildParticleContainerTwo( Particle* &pl );
+void BuildParticleContainerCube( Particle* &pl, double bb[], int np );
 
 class ParticleContainer
 {

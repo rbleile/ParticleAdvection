@@ -1,10 +1,10 @@
 #CPP_COMPILER=g++
 CPP_COMPILER=icpc
 
-OPLVL=-g
+#OPLVL=-g
 #OPLVL=-O0
 #OPLVL=-O1
-#OPLVL=-O2
+OPLVL=-O2
 #OPLVL=-O3
 
 COMPILE_FLAGS=-fopenmp
@@ -94,8 +94,11 @@ clean:
 	@rm */*.o bin/*.out
 
 cvtk:
-	@rm bin/*.vtk
+	@rm *.vtk bin/*.vtk
 
 clear:
 	@clear
 	@clear
+
+count:
+	wc -l `find *` || true

@@ -140,6 +140,39 @@ void VTKFilePrinter::printVtkDs()
 				}
 			}
 
+			ss << endl;
+
+			ss << "FIELD FieldData 1" << endl; 
+			ss << "max_diff 1 " << (Rdims[id_1]-1)*(Rdims[id_2]-1) << " float" << endl;
+
+			count = 0;
+			double * diffP = diff[d];
+
+//Need to print in xyz order for vtk file.
+
+			for( long int z_id = 0; z_id < RcMDim[2]; z_id++ )
+			{	
+				for( long int y_id = 0; y_id < RcMDim[1]; y_id++ )
+				{	
+					for( long int x_id = 0; x_id < RcMDim[0]; x_id++ )
+					{
+
+						if     ( d == 0 ) x_id = uber;
+						else if( d == 1 ) y_id = uber;
+						else if( d == 2 ) z_id = uber;
+							
+						long int id = x_id + (Rdims[0]-1) * ( y_id + (Rdims[1]-1) * z_id );  
+
+						if( count%9 == 0 && count != 0 ){
+							ss << endl;
+						}
+						ss << diffP[id] << " ";
+						count++;
+
+					}
+				}
+			}
+
 			stringstream filename;
 			filename << baseName << "_vtkOut_" << d << "_" << uber << ".vtk";
 			string fname;

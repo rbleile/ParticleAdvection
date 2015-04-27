@@ -27,7 +27,7 @@ class DomainMesh
 	// Flows
 	Flow* flowField[3];
 	bool* AcceptableFlow[3];
-	//double* max_diff[3];
+	double* max_diff[3];
 
 	//Fine Grain Mesh
 	Mesh* mesh;

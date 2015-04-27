@@ -30,6 +30,13 @@ using std::max;
 #define debug true
 #endif
 
+#ifndef ADVECT_PARTICLES
+#define ADVECT_PARTICLES 3
+#endif
+
+#ifndef PRINT_VTK
+#define PRINT_VTK 1
+#endif
 
 #ifndef STEPSIZE
 #define STEPSIZE 0.001
@@ -175,6 +182,10 @@ cerr << num_X_planar_cells << " " << num_Y_planar_cells << " " << num_Z_planar_c
 	UberMesh.AcceptableFlow[0] = new bool [ num_X_planar_cells ];
 	UberMesh.AcceptableFlow[1] = new bool [ num_Y_planar_cells ];
 	UberMesh.AcceptableFlow[2] = new bool [ num_Z_planar_cells ];
+// Allocate the max_diff for the flow map
+	UberMesh.max_diff[0] = new double [ num_X_planar_cells ]();
+	UberMesh.max_diff[1] = new double [ num_Y_planar_cells ]();
+	UberMesh.max_diff[2] = new double [ num_Z_planar_cells ]();
 
 //Initisalize flow data
 	UberMesh.fillInFlows(); 
@@ -236,6 +247,46 @@ cerr << num_X_planar_cells << " " << num_Y_planar_cells << " " << num_Z_planar_c
 
 	cout << "[----------- END -----------]" << endl;
 
+
+#if ADVECT_PARTICLES
+	cout << "Building Advection List" << endl;
+
+	long int numParticles = 1;
+	Particle* advectionList;
+
+	if (ADVECT_PARTICLES == 1 )
+		BuildParticleContainerOne( advectionList );
+	else if (ADVECT_PARTICLES == 2 )
+	{
+		numParticles = 2;
+		BuildParticleContainerTwo( advectionList );
+	}
+	else if (ADVECT_PARTICLES == 3 )
+	{
+		cout << "A 3" << endl;
+		BuildParticleContainerFull( &FineMesh, advectionList, numParticles );
+		cout << "P0" << advectionList[0].x << endl;
+	}
+	else if (ADVECT_PARTICLES == 4 )
+	{
+		BuildParticleContainerFullX2( &FineMesh, advectionList, numParticles );
+	}
+	else if (ADVECT_PARTICLES == 5 )
+	{
+		numParticles = 10*10*10;
+		double cube[6] = { -1, 1, -1, 1, -1, 1 };
+		BuildParticleContainerCube( advectionList, cube, 10 );
+	}
+	ParticleContainer advectList( advectionList, numParticles );
+
+	cout << "P0" << advectList.particle[0].x << endl;
+
+	cout << "Advecting Particle List" << endl;
+	AdvectParticleList( &FineMesh, &UberMesh, &advectList, ENDTIME, BoundBox );
+
+#endif
+
+#if PRINT_VTK
 	cout << "Printing VTK Files" << endl;
 
 /*VTK File Printer*/
@@ -245,25 +296,9 @@ double umD[3]  = {fdx, fdy, fdz};
 double fmD[3]  = {dx, dy, dz};
 double orig[3] = { xmin, ymin, zmin };
 
-VTKFilePrinter printer( umN, fmN, umD, fmD, orig, UberMesh.AcceptableFlow, "Tok" );
+VTKFilePrinter printer( umN, fmN, umD, fmD, orig, UberMesh.AcceptableFlow, UberMesh.max_diff, "Tok" );
 
 printer.printVtkDs();
-
-#if 1
-	cout << "Building Advection List" << endl;
-
-	long int numParticles = 1;
-	Particle* advectionList;
-
-//	BuildParticleContainerOne( advectionList );
-	BuildParticleContainerTwo( advectionList );
-//	BuildParticleContainerFull( &FineMesh, advectionList, numParticles );
-//	BuildParticleContainerFullX2( &FineMesh, advectionList, numParticles );
-
-	ParticleContainer advectList( advectionList, numParticles );
-
-	cout << "Advecting Particle List" << endl;
-	AdvectParticleList( &FineMesh, &UberMesh, &advectList, ENDTIME, BoundBox );
 
 #endif
 
