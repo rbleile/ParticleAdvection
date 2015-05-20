@@ -13,11 +13,18 @@
     now = t.tv_sec + t.tv_usec/1000000.0; \
 }
 
+#ifndef doCopy
+#define doCopy 1
+#endif
+
 using std::cerr;
 using std::cout;
 using std::endl;
 using std::sqrt;
 using std::pow;
+using std::fabs;
+using std::min;
+using std::max;
 using std::string;
 using std::stringstream;
 
@@ -90,7 +97,7 @@ void ComputeFaceID( long int cellID, DomainMesh *UberMesh, Particle* part )
 	part->setFID( bb );
 }
 
-bool AcceptableFlow( long int cellID, DomainMesh *UberMesh, Mesh* FineMesh, Particle* part )
+bool AcceptableFlow( long int cellID, DomainMesh *UberMesh, Mesh* FineMesh, Particle* part, int toPrint )
 {
 
 	int FID = part->FID;
@@ -115,8 +122,12 @@ bool AcceptableFlow( long int cellID, DomainMesh *UberMesh, Mesh* FineMesh, Part
 		long int Uids[3];
 		long int Fids[3];
 
-		UberMesh->D1to3P( cellID, Uids );
+		UberMesh->D1to3C( cellID, Uids );
 		FineMesh->getLogicalCellID( part->x, part->y, part->z, Fids );
+
+		Uids[0] = ( FID == 1 ) ? Uids[0]+1 : Uids[0];
+		Uids[1] = ( FID == 2 ) ? Uids[1]+1 : Uids[1];
+		Uids[2] = ( FID == 5 ) ? Uids[2]+1 : Uids[2];
 
 		long int x_id, y_id, z_id;
 
@@ -129,14 +140,20 @@ bool AcceptableFlow( long int cellID, DomainMesh *UberMesh, Mesh* FineMesh, Part
 	else if ( FID >= 6 )
 	{
 		cerr << "FID: EDGE CASE HIT: " << FID << "\t This case is not yet handled" << endl;
+		if(toPrint) cerr << "My Case" << endl;
 		return 0;
 	}	
+
+	if( toPrint )
+	{
+		cerr << "Part: " << part->x << " " << part->y << " " << part->z << endl;
+	} 
 
 	return UberMesh->AcceptableFlow[d][ cell_id ];
 
 }
 
-int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh, Particle* part, double endTime, double* MBB )
+int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh, Particle* part, double endTime, double* MBB, int toPrint, double &Etime, double &Atime )
 {
 	int FID = part->FID;
 
@@ -151,13 +168,38 @@ int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh
 	if( FID < 6 )
 	{
 
+
+#if doCopy
+
+	double startE, stopE;
+
+					GET_TIME( startE );
+
 					Particle copy;
 					copy.x = part->x;
 					copy.y = part->y;
 					copy.z = part->z;
 					copy.t = part->t;
 					copy.setStepSize( part->getStepSize() );
-					UberMesh->EulerCellAdvection( cellID, endTime, MBB, copy ); 
+					if( toPrint )
+					{
+						cerr << "cellID: " << cellID << endl;
+						cerr << "Euler Start: " << copy.x << " " << copy.y << " " << copy.z << endl;
+					}
+					UberMesh->EulerCellAdvection( cellID, endTime, MBB, copy, toPrint ); 
+					if( toPrint )
+					{
+						cerr << "Euler End  : " << copy.x << " " << copy.y << " " << copy.z << endl;
+					}
+					GET_TIME( stopE );
+
+					Etime += stopE-startE;
+
+#endif			 
+
+		double startA, stopA;
+
+		GET_TIME( startA );
 
 		d = (( FID == 1 || FID == 3) ? 0 : ( ( FID == 0 || FID == 2  ) ? 1  : 2 ) );
 
@@ -178,8 +220,12 @@ int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh
 		long int Uids[3];
 		long int Fids[3];
 
-		UberMesh->D1to3P( cellID, Uids );
+		UberMesh->D1to3C( cellID, Uids );
 		FineMesh->getLogicalCellID( part->x, part->y, part->z, Fids );
+
+		Uids[0] = ( FID == 1 ) ? Uids[0]+1 : Uids[0];
+		Uids[1] = ( FID == 2 ) ? Uids[1]+1 : Uids[1];
+		Uids[2] = ( FID == 5 ) ? Uids[2]+1 : Uids[2];
 
 		long int x_id, y_id, z_id;
 
@@ -188,7 +234,7 @@ int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh
 		else if ( d == 2 ){ x_id = Fids[0]; y_id = Fids[1]; z_id = Uids[2]; }
 
 		base_id = x_id + Rdim[0] * ( y_id + ( Rdim[1] * z_id ) );
-
+		
 		long int flowIDs[4] = { base_id, base_id + Rneighbors[0], base_id + Rneighbors[1], base_id + Rneighbors[2] };
 
 		double x = part->x; double y = part->y; double z = part->z; double t = part->t;
@@ -196,41 +242,130 @@ int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh
 
 		Flow* flows = UberMesh->flowField[d];
 
-		Point p0 = flows[ flowIDs[0] ].in;
-		Point p1 = flows[ flowIDs[1] ].in;
-		Point p2 = flows[ flowIDs[2] ].in;
-		Point p3 = flows[ flowIDs[3] ].in;
 
-		if      ( d == 0 ){ fracD1 = ( y - p0.y ) / ( p1.y - p0.y ); fracD2 = ( z - p0.z )/( p2.z - p0.z ); }
-		else if ( d == 1 ){ fracD1 = ( z - p0.z ) / ( p1.z - p0.z ); fracD2 = ( x - p0.x )/( p2.x - p0.x ); }
-		else if ( d == 2 ){ fracD1 = ( x - p0.x ) / ( p1.x - p0.x ); fracD2 = ( y - p0.y )/( p2.y - p0.y ); }
-
-		p0 = flows[ flowIDs[0] ].out;
-		p1 = flows[ flowIDs[1] ].out;
-		p2 = flows[ flowIDs[2] ].out;
-		p3 = flows[ flowIDs[3] ].out;
+		int ordering[4];
+		Point pi[4]= {	flows[ flowIDs[0] ].in,
+						flows[ flowIDs[1] ].in, 
+						flows[ flowIDs[2] ].in, 
+						flows[ flowIDs[3] ].in  };
 	
-		double X01 = p0.x + fracD1 * ( p1.x - p0.x ); 
-		double X23 = p0.x + fracD1 * ( p3.x - p2.x );
+		double minX = min( pi[0].x, min( pi[1].x, min( pi[2].x, pi[3].x ) ) );
+		double minY = min( pi[0].y, min( pi[1].y, min( pi[2].y, pi[3].y ) ) );
+		double minZ = min( pi[0].z, min( pi[1].z, min( pi[2].z, pi[3].z ) ) );
 
-		double Y01 = p0.y + fracD1 * ( p1.y - p0.y ); 
-		double Y23 = p2.y + fracD1 * ( p3.y - p2.y );
+		double maxX = max( pi[0].x, max( pi[1].x, max( pi[2].x, pi[3].x ) ) );
+		double maxY = max( pi[0].y, max( pi[1].y, max( pi[2].y, pi[3].y ) ) );
+		double maxZ = max( pi[0].z, max( pi[1].z, max( pi[2].z, pi[3].z ) ) );
 
-		double Z01 = p0.z + fracD1 * ( p1.z - p0.z ); 
-		double Z23 = p2.z + fracD1 * ( p3.z - p2.z );
+		double f11,f12,f21,f22;
 
-		double T01 = p0.t + fracD1 * ( p1.t - p0.t ); 
-		double T23 = p2.t + fracD1 * ( p3.t - p2.t );
+		if( d == 0 )
+		{
+			//Y Z ordering	
+			double denom = (maxY-minY)*(maxZ-minZ);
 
-		double xx = x;
-		double yy = y;
-		double zz = z;
-		double tt = t;
-		
-		x = X01 + fracD2 * ( X23-X01 );
-		y = Y01 + fracD2 * ( Y23-Y01 );
-		z = Z01 + fracD2 * ( Z23-Z01 );
-		t = T01 + fracD2 * ( T23-T01 );
+			f11 = (( maxY - y ) * ( maxZ - z )) / ( denom );
+			f21 = (( y - minY ) * ( maxZ - z )) / ( denom );
+			f12 = (( maxY - y ) * ( z - minZ )) / ( denom );
+			f22 = (( y - minY ) * ( z - minZ )) / ( denom );
+
+			for( int i = 0; i < 4; i++ )
+			{
+				if     ( pi[i].y == minY && pi[i].z == minZ )
+				{
+					ordering[0] = i;
+				}
+				else if( pi[i].y == maxY && pi[i].z == minZ )
+				{
+					ordering[1] = i;
+				}
+				else if( pi[i].y == minY && pi[i].z == maxZ )
+				{
+					ordering[2] = i;
+				}
+				else if( pi[i].y == maxY && pi[i].z == maxZ )
+				{
+					ordering[3] = i;
+				}
+			}
+
+		}
+		else if( d == 1 )
+		{
+		//Z X ordering
+			double denom = (maxZ-minZ)*(maxX-minX);
+
+			f11 = (( maxZ - z ) * ( maxX - x )) / ( denom );
+			f21 = (( z - minZ ) * ( maxX - x )) / ( denom );
+			f12 = (( maxZ - z ) * ( x - minX )) / ( denom );
+			f22 = (( z - minZ ) * ( x - minX )) / ( denom );
+
+			for( int i = 0; i < 4; i++ )
+			{
+				if     ( pi[i].z == minZ && pi[i].x == minX )
+				{
+					ordering[0] = i;
+				}
+				else if( pi[i].z == maxZ && pi[i].x == minX )
+				{
+					ordering[1] = i;
+				}
+				else if( pi[i].z == minZ && pi[i].x == maxX )
+				{
+					ordering[2] = i;
+				}
+				else if( pi[i].z == maxZ && pi[i].x == maxX )
+				{
+					ordering[3] = i;
+				}
+			}
+		}
+		else if( d == 2 )
+		{
+		//X Y ordering
+			double denom = (maxX-minX)*(maxY-minY);
+
+			f11 = (( maxX - x ) * ( maxY - y )) / ( denom );
+			f21 = (( x - minX ) * ( maxY - y )) / ( denom );
+			f12 = (( maxX - x ) * ( y - minY )) / ( denom );
+			f22 = (( x - minX ) * ( y - minY )) / ( denom );
+
+			for( int i = 0; i < 4; i++ )
+			{
+				if     ( pi[i].x == minX && pi[i].y == minY )
+				{
+					ordering[0] = i;
+				}
+				else if( pi[i].x == maxX && pi[i].y == minY )
+				{
+					ordering[1] = i;
+				}
+				else if( pi[i].x == minX && pi[i].y == maxY )
+				{
+					ordering[2] = i;
+				}
+				else if( pi[i].x == maxX && pi[i].y == maxY )
+				{
+					ordering[3] = i;
+				}
+			}
+		}
+
+			
+//same for all
+			Point po[4]= {	flows[ flowIDs[0] ].out,
+							flows[ flowIDs[1] ].out, 
+							flows[ flowIDs[2] ].out, 
+							flows[ flowIDs[3] ].out  };
+			double xx = x;
+			double yy = y;
+			double zz = z;
+			double tt = t;
+
+			x = f11*po[ordering[0]].x + f21*po[ordering[1]].x + f12*po[ordering[2]].x + f22*po[ordering[3]].x;
+			y = f11*po[ordering[0]].y + f21*po[ordering[1]].y + f12*po[ordering[2]].y + f22*po[ordering[3]].y;
+			z = f11*po[ordering[0]].z + f21*po[ordering[1]].z + f12*po[ordering[2]].z + f22*po[ordering[3]].z;
+			t = f11*po[ordering[0]].t + f21*po[ordering[1]].t + f12*po[ordering[2]].t + f22*po[ordering[3]].t;
 	
 		//If no time change in advection
 		if( tt == t )
@@ -242,7 +377,7 @@ int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh
 		//If the interpolation will put us past the end time and half of the time difference is greater then end time just euler to finish
 		if( (tt + t > endTime) && (tt + (t/2.0) > endTime) )
 		{
-			UberMesh->EulerCellAdvection( cellID, endTime, MBB, *part); 
+			UberMesh->EulerCellAdvection( cellID, endTime, MBB, *part, toPrint); 
 			return 0;
 		}
 
@@ -259,49 +394,56 @@ int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh
 			return 0;
 		}
 
+
 		//Compute the face we  landed on
 		ComputeFaceID( cellID, UberMesh, part );
 
+		GET_TIME( stopA );
+
+		Atime += stopA-startA;
+
+/*
 		int FID2 = part->FID;
 
 		//Using the face we landed on determine which cell we should advect too next
 		if( FID2 >= 0 && FID2 < 6 )
 		{
-			double t_bb[6];
-			UberMesh->getCellBounds( cellID, t_bb );
-			if( FID2 == 0 || FID2 == 2 )
-			{
-				part->x = UberMesh->x0 + UberMesh->dx*( ( FID2 == 0 ) ? Uids[0]  : Uids[0]+1 );
-			}
-			else if( FID2 == 1 || FID2 == 3 )
-			{
-				part->y = UberMesh->y0 + UberMesh->dy*( ( FID2 == 3 ) ? Uids[1]  : Uids[1]+1 );
-			}
-			else if( FID2 == 4 || FID2 == 5 )
-			{
-				part->z = UberMesh->z0 + UberMesh->dz*( ( FID2 == 4 ) ? Uids[2]  : Uids[2]+1 );
-			}
-	
-			cellID += ( ( FID2 == 0 ) ?  -(UberMesh->nx) : ( FID2 == 1 ) ?  1 : ( FID2 == 2 ) ? (UberMesh->nx) : ( FID2 == 3 ) ? -1 : ( FID2 == 4 ) ? -(UberMesh->nx*UberMesh->ny) : ( UberMesh->nx*UberMesh->ny) );	
-			
+			cellID += ( ( FID2 == 0 ) ?  -(UberMesh->nx-1) : 
+                        ( FID2 == 1 ) ?  1 : 
+                        ( FID2 == 2 ) ? (UberMesh->nx-1) : 
+                        ( FID2 == 3 ) ? -1 : 
+                        ( FID2 == 4 ) ? -((UberMesh->nx-1)*(UberMesh->ny-1)) : 
+                                         ((UberMesh->nx-1)*(UberMesh->ny-1)) 
+                      );	
 		}
 		else //We dont handle edge cases yet
+		{
+			fprintf(stderr, "edgeCase conditon: %d", FID2);
 			return 2;
+		}
+		
+*/
+#if doCopy
+
+		GET_TIME( startE );
 
 		long int dcell_id = x_id + (Rdim[0]-1) * ( y_id + ( (Rdim[1]-1) * z_id ) );
-		
-		double distance = sqrt( pow( (part->x-copy.x), 2 ) + pow( (part->y-copy.y), 2 ) + pow( (part->z-copy.z),2) );
+		double distance = fabs( sqrt( pow( (part->x-copy.x), 2 ) + pow( (part->y-copy.y), 2 ) + pow( (part->z-copy.z),2) ) );
+
+		if( toPrint ){ cerr << "Dist: " << distance << endl;  }
 
 		double* max_diff = UberMesh->max_diff[d];
 
 		#pragma omp critical
 		{
-			if( distance > max_diff[dcell_id] );
-			{
-				max_diff[dcell_id] = distance;
-			}
+			max_diff[dcell_id] = ( max_diff[dcell_id] < distance  ) ? distance : max_diff[dcell_id];
 		}
 
+		GET_TIME( stopE );
+
+		Etime += stopE-startE;
+
+#endif
 		return 1;
 
 	}
@@ -316,25 +458,44 @@ int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh
 void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer* advectList, double endtime, double* MBB )
 {
 
-	int numParticles = advectList->getNumParticles();
+	long int numParticles = advectList->getNumParticles();
+
+	long int chunk_size = numParticles * .01;
 
 	double max_distance = 0.0;
 
-	#pragma omp parallel for
+
+	double Total_Advection_Time = 0;
+	double Total_Euler_Time = 0;
+	long int nonZeroParticle = 0;
+
+	#pragma omp parallel for schedule( static, chunk_size ) 
 	for( long int i = 0; i < numParticles; i++ ){
 
-		cerr << endl;
-		cerr << "-----------------------------";
-		cerr << "Particle " << i+1 << " / " << numParticles << " ";
-		cerr << "-----------------------------" << endl;
+		double AdvectionTime = 0.0;
+		double EulerTime = 0.0;
 
 		int status = 1;
 		Particle &particle = advectList->particle[i];
 
+		int toPrint = 0;
+
+/*
+		if( i == 402189 )
+		{
+			toPrint = 1;
+		}
+*/
+
+//		fprintf( stderr, "Particle %d / %d\nPos: %g \t %g \t %g \n", i, numParticles, particle.x, particle.y, particle.z );
+
 		long int cellID = GetParticleCellID( FineMesh, UberMesh, &particle,MBB );
 		double cbb[6];
 
-		if( cellID == -1 ) continue; //Particle Seeded outside of Mesh ( Skip it )
+		if( cellID == -1 ){
+			//fprintf( stderr, "Skipping particle: particle < %g, %g, %g > \n", particle.x, particle.y, particle.z );
+			continue; //Particle Seeded outside of Mesh ( Skip it )
+		}
 
 		UberMesh->getCellBounds( cellID, cbb );
 
@@ -343,27 +504,50 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 		if( onCellFace ) ComputeFaceID( cellID, UberMesh, &particle );
 
 		int count = 0;
+		long int total = 0;
+		long int advected = 0;
+		long int euler = 0;
 		double start_time, end_time;
-		double AdvectionTime = 0;
-		double EulerTime = 0;
 
-		while( status )
+		double Ttime = 0;
+
+		while( status && count < (int)( endtime/STEPSIZE ) )
 		{	
+
+		if( toPrint )
+		{
+			//fprintf(stderr, "\nLooping %ld \n Stat: %d \n Count: %ld \n onCellFace: %d %ld \n Advected: %ld \n Eulered: %ld \n POS: %g %g %g \n T: %g \n", i, status, count, onCellFace, cellID, advected, euler, particle.x, particle.y, particle.z, particle.t  );
+			fprintf(stderr, "\nLooping %ld\nPOS: %g %g %g \n T: %g \nCellID: %ld\n", i, particle.x, particle.y, particle.z, particle.t, cellID  );
+			UberMesh->getCellBounds( cellID, cbb );
+			fprintf(stderr, "BBox: %g %g \t %g %g \t %g %g\n\n", cbb[0], cbb[1], cbb[2], cbb[3], cbb[4], cbb[5] );
+		}
+			total++;
 
 			if( onCellFace )
 			{
 				ComputeFaceID( cellID, UberMesh, &particle );
-				int canFlow = AcceptableFlow( cellID, UberMesh, FineMesh, &particle );
+				int toPrint2;
+				int canFlow = AcceptableFlow( cellID, UberMesh, FineMesh, &particle, toPrint2 );
+
 				if( canFlow )
 				{
 
-					GET_TIME( start_time );
+					advected++;
 
-					status = AdvectParticleOnFlow( cellID, FineMesh, UberMesh, &particle, endtime, MBB );
+					if( toPrint )
+					{
+						cerr << "FID: " << particle.FID << endl;
+					}
 
-					GET_TIME( end_time );
+					status = AdvectParticleOnFlow( cellID, FineMesh, UberMesh, &particle, endtime, MBB, toPrint, EulerTime, AdvectionTime );
 
-					AdvectionTime += end_time-start_time;
+					Ttime += AdvectionTime;
+
+					if( toPrint )
+					{
+						cerr << "Particle ID: " << i << endl;
+						cerr << "AD OUT Pos: " << particle.x << " " << particle.y << " " << particle.z << endl;
+					}
 
 					count++;
 				}
@@ -371,26 +555,34 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 				{
 					double t = particle.t;
 					GET_TIME( start_time );
-					status = UberMesh->EulerCellAdvection( cellID, endtime, MBB, particle ); 
+					status = UberMesh->EulerCellAdvection( cellID, endtime, MBB, particle, toPrint ); 
 					GET_TIME( end_time );
 					EulerTime += end_time-start_time;
+					Ttime += end_time-start_time;
 					double tt = particle.t;
-					count += (int)(tt-t)/STEPSIZE;
+					count += (int)((tt-t)/STEPSIZE);
+					euler++;
 				}
 			}
 			else
 			{
+
 				double t = particle.t;
 				GET_TIME( start_time );
-				status = UberMesh->EulerCellAdvection( cellID, endtime, MBB, particle ); 
+				status = UberMesh->EulerCellAdvection( cellID, endtime, MBB, particle, toPrint ); 
 				GET_TIME( end_time );
 				EulerTime += end_time-start_time;
+				Ttime += end_time-start_time;
 				double tt = particle.t;
-				count += (int)(tt-t)/STEPSIZE;
+				count += (int)((tt-t)/STEPSIZE);
+				euler++;
+
 			}
 
-			if( status == 2 )
-			{
+//			if( status == 2 )
+//			{
+			
+				GET_TIME( start_time );
 				cellID = GetParticleCellID( FineMesh, UberMesh, &particle, MBB ); 
 				if( cellID == -1 )
 				{
@@ -400,13 +592,36 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 					ComputeFaceID( cellID, UberMesh, &particle );
 					onCellFace = 1;
 				}
-			}
+				GET_TIME( end_time );
+
+				EulerTime += end_time-start_time;
+				Ttime += end_time-start_time;
+				
+
+//			}
 
 			status = ( particle.t >= endtime ) ? 0 : status;
 		}	
 
-		fprintf(stderr,  "Particle Complete in: %g (seconds)", AdvectionTime+EulerTime );
 
+		#pragma omp critical
+		{
+			Total_Advection_Time += Ttime;
+			Total_Euler_Time += EulerTime;
+			nonZeroParticle++;
+		}
+
+//		fprintf(stderr,  "Particle Complete %d in: C: %d, \t A: %g (seconds), E: %g (seconds), \t %g (seconds) \t Advected: %ld \t Eulerd: %ld \t Total: %ld \nParticle: %g, %g, %g, time: %g stat: %d \n", i, count, AdvectionTime, EulerTime, fullstop-fullstart, advected, euler, total, particle.x, particle.y, particle.z, particle.t, status );
 	}
+
+
+	cerr << "Total_Advection_Time:   " << Total_Advection_Time << endl;
+	cerr << "Total_Euler_Time:       " << Total_Euler_Time << endl;
+	cerr << "Num NonZero Particles:  " << nonZeroParticle << endl;
+	cerr << "Average Advection Time: " << Total_Advection_Time / ( ((nonZeroParticle == 0 ) ? 1 : nonZeroParticle ) ) << endl;
+	cerr << "Average Euler Time:     " << Total_Euler_Time / ( ((nonZeroParticle == 0 ) ? 1 : nonZeroParticle ) ) << endl;
+	cerr << "Estimated Speedup:      " << Total_Euler_Time / Total_Advection_Time << endl;
+
+	fprintf( stderr, "Complete\n" );
 
 }

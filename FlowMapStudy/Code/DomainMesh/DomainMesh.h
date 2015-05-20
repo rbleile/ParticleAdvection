@@ -138,7 +138,7 @@ class DomainMesh
 	void fillInFlows();
 	void setFlowsCellIDs();
 
-	int EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle );
+	int EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle, int toPrint );
 	int ReverseEulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle );
 
 	long int computeAllAcceptableFlows();

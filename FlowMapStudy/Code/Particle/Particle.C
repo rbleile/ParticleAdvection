@@ -1,15 +1,29 @@
 #include "Particle.h"
 
 //Function for checking floating point equvalence to epsilon error
-inline bool almostEqual( float p1, float p2 )
+inline bool almostEqual( float ip1, float ip2 )
 {
-	return ( ( fabs((p1-p2)) <= epsilon ) ? true : false);
+	float p1 = fabs( ip1 );
+	float p2 = fabs( ip2 );
+	if( p1 < 1 || p2 < 1 )
+	{
+		return ( fabs( ip1-ip2 ) <= epsilon );
+	}
+
+	return ( ( fabs((ip1-ip2)) <= (( ( p1 < p2) ? p2 : p1 )*epsilon) ) ? true : false);
+} 
+inline bool almostEqual( double ip1, double ip2 )
+{
+	double p1 = fabs( ip1 );
+	double p2 = fabs( ip2 );
+	if( p1 < 1 || p2 < 1 )
+	{
+		return ( fabs( ip1-ip2 ) <= epsilon );
+	}
+
+	return ( ( fabs((ip1-ip2)) <= (( ( p1 < p2) ? p2 : p1 )*epsilon) ) ? true : false);
 } 
 
-inline bool almostEqual( double p1, double p2 )
-{
-	return ( ( fabs((p1-p2)) <= epsilon ) ? true : false);
-}
 
 double Particle::getStepSize()
 {

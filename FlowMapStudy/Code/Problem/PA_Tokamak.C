@@ -31,7 +31,7 @@ using std::max;
 #endif
 
 #ifndef ADVECT_PARTICLES
-#define ADVECT_PARTICLES 3
+#define ADVECT_PARTICLES 4
 #endif
 
 #ifndef PRINT_VTK
@@ -173,6 +173,8 @@ cerr << num_X_planar_flows << " " << num_Y_planar_flows << " " << num_Z_planar_f
 cerr << num_X_planar_cells << " " << num_Y_planar_cells << " " << num_Z_planar_cells << endl;
 */
 
+
+
 // Allocate the flows for the flow map
 	UberMesh.flowField[0] = new Flow [ num_X_planar_flows ];
 	UberMesh.flowField[1] = new Flow [ num_Y_planar_flows ];
@@ -220,7 +222,7 @@ cerr << num_X_planar_cells << " " << num_Y_planar_cells << " " << num_Z_planar_c
 				Particle part = flowParticles[d]->particle[i];
 
 				//cerr << "Particle Cell Advection: " << d << " " << i << endl;
-				UberMesh.EulerCellAdvection( cellID, 100.0, cbb, part );
+				UberMesh.EulerCellAdvection( cellID, 100.0, cbb, part,0 );
 
 				flow->out.setPoint( part.x, part.y, part.z, part.t );
 				flow->setFID( cbb );
@@ -273,10 +275,27 @@ cerr << num_X_planar_cells << " " << num_Y_planar_cells << " " << num_Z_planar_c
 	}
 	else if (ADVECT_PARTICLES == 5 )
 	{
-		numParticles = 10*10*10;
+		int cbe = 100;
+		numParticles = cbe*cbe*cbe;
 		double cube[6] = { -1, 1, -1, 1, -1, 1 };
-		BuildParticleContainerCube( advectionList, cube, 10 );
+		BuildParticleContainerCube( advectionList, cube, cbe );
 	}
+	else if( ADVECT_PARTICLES == 6 )
+	{
+
+		long int uN[3] = { UberMesh.nx, UberMesh.ny, UberMesh.nz };
+		long int uD[3] = { UberMesh.dx, UberMesh.dy, UberMesh.dz };
+
+
+		cerr << "Building Particles" << endl;
+
+		numParticles = num_X_planar_flows + num_Y_planar_flows + num_Z_planar_flows;
+		BuildParticleContainerPlanar( &FineMesh, uN, uD, advectionList, numParticles );
+
+		cerr << "Built" << endl;
+
+	}
+
 	ParticleContainer advectList( advectionList, numParticles );
 
 	cout << "P0" << advectList.particle[0].x << endl;

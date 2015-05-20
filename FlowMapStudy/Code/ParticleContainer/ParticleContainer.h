@@ -5,6 +5,7 @@
 #ifndef PARTICLECONTAINER_H
 #define PARTICLECONTAINER_H
 
+void BuildParticleContainerPlanar( Mesh* Fmesh, long int UmeshN[3], long int UmeshD[3], Particle* &particle, long int numP );
 void BuildParticleContainerFullX2( Mesh* mesh, Particle* &pl, long int &numP );
 void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP );
 void BuildParticleContainerOne( Particle* &pl );

@@ -35,15 +35,29 @@ using std::max;
 #endif
 
 //Function for checking floating point equvalence to epsilon error
-inline bool almostEqual( float p1, float p2 )
+inline bool almostEqual( float ip1, float ip2 )
 {
-	return ( ( fabs((p1-p2)) <= epsilon ) ? true : false);
+	float p1 = fabs( ip1 );
+	float p2 = fabs( ip2 );
+	if( p1 < 1 || p2 < 1 )
+	{
+		return ( fabs( ip1-ip2 ) <= epsilon );
+	}
+
+	return ( ( fabs((ip1-ip2)) <= (( ( p1 < p2) ? p2 : p1 )*epsilon) ) ? true : false);
+} 
+inline bool almostEqual( double ip1, double ip2 )
+{
+	double p1 = fabs( ip1 );
+	double p2 = fabs( ip2 );
+	if( p1 < 1 || p2 < 1 )
+	{
+		return ( fabs( ip1-ip2 ) <= epsilon );
+	}
+
+	return ( ( fabs((ip1-ip2)) <= (( ( p1 < p2) ? p2 : p1 )*epsilon) ) ? true : false);
 } 
 
-inline bool almostEqual( double p1, double p2 )
-{
-	return ( ( fabs((p1-p2)) <= epsilon ) ? true : false);
-} 
 /***************************************************************************************************
 -
 -	getVelocity
@@ -341,6 +355,34 @@ inline void stepBackToBoundry( Particle &particle, double* bbox, double *vel, do
 	particle.y += vel[1]*ndt;
 	particle.z += vel[2]*ndt;
 	particle.t -= fabs( ndt );
+
+
+	if( almostEqual( particle.x, bbox[0] ))
+	{
+		particle.x = bbox[0];
+	}
+	else if( almostEqual( particle.x, bbox[1] ))
+	{
+		particle.x = bbox[1];
+	}
+
+	if( almostEqual( particle.y, bbox[2] ))
+	{
+		particle.y = bbox[2];
+	}
+	else if( almostEqual( particle.y, bbox[3] ))
+	{
+		particle.y = bbox[3];
+	}
+
+	if( almostEqual( particle.z, bbox[4] ))
+	{
+		particle.z = bbox[4];
+	}
+	else if( almostEqual( particle.z, bbox[5] ))
+	{
+		particle.z = bbox[5];
+	}
 }
 
 /***************************************************************************************************
@@ -378,6 +420,31 @@ int Mesh::onBoundary( Particle particle, double* bbox )
     }
 }
 
+inline int onX( Particle particle, double* bbox )
+{
+	if( (almostEqual( particle.x, bbox[0] ) || almostEqual( particle.x, bbox[1] )) &&
+        particle.y >= bbox[2] && particle.y <= bbox[3] &&
+        particle.z >= bbox[4] && particle.z <= bbox[5] )
+		return 1;
+	return 0;
+}
+inline int onY( Particle particle, double* bbox )
+{
+	if( (almostEqual( particle.y, bbox[2] ) || almostEqual( particle.y, bbox[3] )) &&
+        particle.x >= bbox[0] && particle.x <= bbox[1] &&
+        particle.z >= bbox[4] && particle.z <= bbox[5] )
+		return 1;
+	return 0;
+}
+inline int onZ( Particle particle, double* bbox )
+{
+	if( (almostEqual( particle.z, bbox[4] ) || almostEqual( particle.z, bbox[5] )) &&
+        particle.y >= bbox[2] && particle.y <= bbox[3] &&
+        particle.x >= bbox[0] && particle.x <= bbox[1] )
+		return 1;
+	return 0;
+}
+
 /***************************************************************************************************
 -
 -	CheckStep
@@ -385,14 +452,28 @@ int Mesh::onBoundary( Particle particle, double* bbox )
 -		return codes ( 0 - kill, 1 - keep going, 2 - reevaluate flows )
 -
 ***************************************************************************************************/
-inline int checkStep( Particle &particle, double endTime, double* bbox, double* mBB, double* vel, double dt )
+inline int checkStep( Particle &particle, double endTime, double* bbox, double* mBB, double* vel, double dt, int toPrint )
 {
+
+	if( toPrint )
+	{
+		cerr << "Out Pos: " << particle.x << " " << particle.y << " " << particle.z << endl; 
+		cerr << "Out Vel: " << vel[0] << " " << vel[1] << " " << vel[2] << endl;
+		cerr << "Bbox:    " << bbox[0] << " " << bbox[1] << " \t " << bbox[2] << " " << bbox[3] << " \t " << bbox[4] << " " << bbox[5] << endl;
+	}
 
 	if( !checkBoundary(particle, bbox) ){ 
 
 		int inMesh = checkBoundary(particle, mBB); // Check if particle has left mesh entirely
 
 		stepBackToBoundry( particle, bbox, vel, dt );
+
+		if( toPrint )
+		{
+			cerr << "Out Pos: " << particle.x << " " << particle.y << " " << particle.z << endl; 
+			cerr << "Out Vel: " << vel[0] << " " << vel[1] << " " << vel[2] << endl;
+			cerr << "Bbox:    " << bbox[0] << " " << bbox[1] << " \t " << bbox[2] << " " << bbox[3] << " \t " << bbox[4] << " " << bbox[5] << endl;
+		}
 
 		if( !inMesh ) return 0;
 		else          return 2;
@@ -447,11 +528,20 @@ int Mesh::Euler( double* bbox, double* mbb, double endTime, Particle &particle )
         return 0;
 	}
 
-	return checkStep( particle, endTime, bbox, mbb, vel, dt );
+	return checkStep( particle, endTime, bbox, mbb, vel, dt, 0 );
 }
 
 int Mesh::RK4( double* bbox, double* mbb, double endTime, Particle &particle )
 {
+
+	int toPrint = 0;
+/*
+	if( almostEqual( particle.x, 1.80909 ) && almostEqual( particle.y, 0.0 ) && almostEqual( particle.z, -0.205637 ) )
+	{
+		toPrint = 1;
+		cerr << "RK:" << endl;
+	}
+*/
     double k1[3];
     double k2[3];
     double k3[3];
@@ -511,12 +601,19 @@ int Mesh::RK4( double* bbox, double* mbb, double endTime, Particle &particle )
         return 0;
 	}
 
-	return checkStep( particle, endTime, bbox, mbb, vel, dt ); 
+	return checkStep( particle, endTime, bbox, mbb, vel, dt, toPrint ); 
 
 }
 
 int Mesh::REV_RK4( double* bbox, double* mbb, double endTime, Particle &particle )
 {
+
+	int toPrint = 0;
+	if( almostEqual( particle.x, 1.80909 ) && almostEqual( particle.y, 0.0 ) && almostEqual( particle.z, -0.205637 ) )
+	{
+		toPrint = 1;
+	}
+
     double k1[3];
     double k2[3];
     double k3[3];
@@ -576,7 +673,7 @@ int Mesh::REV_RK4( double* bbox, double* mbb, double endTime, Particle &particle
         return 0;
 	}
 
-	return checkStep( particle, endTime, bbox, mbb, vel, dt ); 
+	return checkStep( particle, endTime, bbox, mbb, vel, dt, toPrint ); 
 
 }
 

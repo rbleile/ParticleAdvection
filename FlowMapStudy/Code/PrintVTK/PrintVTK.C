@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <cfloat>
 
 using namespace std;
 
@@ -37,6 +38,9 @@ void VTKFilePrinter::printVtkDs()
 	outM << smesh.rdbuf();
 	outM.close();
 
+	double totAVG = 0;
+	int totSum = 0;
+
 	for( int d = 0; d < 3; d++ )
 	{
 		long int id_1 = (d+1)%3;
@@ -62,6 +66,7 @@ void VTKFilePrinter::printVtkDs()
 		if     ( d == 0 ){ Rdel[0] = Udel[0]; Rdel[1] = Fdel[1]; Rdel[2] = Fdel[2]; }
 		else if( d == 1 ){ Rdel[0] = Fdel[0]; Rdel[1] = Udel[1]; Rdel[2] = Fdel[2]; }
 		else if( d == 2 ){ Rdel[0] = Fdel[0]; Rdel[1] = Fdel[1]; Rdel[2] = Udel[2]; }
+
 
 		for( long int uber = 0; uber < Rdims[d]; uber++ )
 		{
@@ -148,6 +153,12 @@ void VTKFilePrinter::printVtkDs()
 			count = 0;
 			double * diffP = diff[d];
 
+
+			double max = 0;
+			double min = (double)DBL_MAX;
+			double avg = 0;
+			long int counter = 0;
+
 //Need to print in xyz order for vtk file.
 
 			for( long int z_id = 0; z_id < RcMDim[2]; z_id++ )
@@ -166,13 +177,48 @@ void VTKFilePrinter::printVtkDs()
 						if( count%9 == 0 && count != 0 ){
 							ss << endl;
 						}
-						ss << diffP[id] << " ";
+
+						double loc_diff = diffP[id];
+
+						if( loc_diff > max )
+						{
+							max = loc_diff;
+						}
+						if( loc_diff != 0.0 ){
+							if( loc_diff < min )
+							{
+								min = loc_diff;
+							}
+							avg += loc_diff;
+							counter++;
+						}
+						ss << loc_diff << " ";
 						count++;
 
 					}
 				}
 			}
 
+			if( counter == 0 )
+			{
+				avg = 0.0;
+				min = 0.0;
+			}
+			else
+			{
+				avg = avg / counter;
+				totAVG += avg;
+				totSum++;
+			}
+
+/*
+			cerr << "Dim:         " << ( (d == 0) ? 'X' : (d==1) ? 'Y' : 'Z' ) << endl;
+			cerr << "Uber:        " << uber << endl;
+			cerr << "NonZero Min: " << min << endl;
+			cerr << "Max:         " << max << endl;
+			cerr << "NonZero Avg: " << avg << endl;
+			cerr << "Count:       " << counter << endl;
+*/
 			stringstream filename;
 			filename << baseName << "_vtkOut_" << d << "_" << uber << ".vtk";
 			string fname;
@@ -184,4 +230,8 @@ void VTKFilePrinter::printVtkDs()
 			outFile.close();
 		}// uber
 	}// d
+
+	cerr << endl;
+	cerr << "Total Avg: " << totAVG / totSum << endl;
+
 }
