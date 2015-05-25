@@ -1,4 +1,4 @@
-#include "DomainMesh.h"
+#include <DomainMesh.h>
 
 void DomainMesh::fillInFlows()
 {
@@ -115,7 +115,7 @@ inline bool almostEqual( double ip1, double ip2 )
 	return ( ( fabs((ip1-ip2)) <= (( ( p1 < p2) ? p2 : p1 )*epsilon) ) ? true : false);
 } 
 
-int DomainMesh::EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle, int toPrint )
+int DomainMesh::EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle )
 {
 	int stat = 1;
 
@@ -124,18 +124,7 @@ int DomainMesh::EulerCellAdvection( long int cellID, double endTime, double* bb,
 
 	while( stat == 1 )
 	{
-		if( toPrint )
-		{
-			cerr << "Pos: " << particle.x << " " << particle.y << " " << particle.z << endl;
-		}
-		//stat = mesh->Euler( cell_bb, bb, endTime, particle );
 		stat = mesh->RK4( cell_bb, bb, endTime, particle );
-		if( toPrint )
-		{
-			cerr << "stat: " << stat << endl;
-			cerr << "Pos: " << particle.x << " " << particle.y << " " << particle.z << endl;
-			cerr << endl;
-		}
 	}
 
 	return stat;
@@ -150,6 +139,7 @@ int DomainMesh::ReverseEulerCellAdvection( long int cellID, double endTime, doub
 
 	while( stat == 1 )
 	{
+
 		//stat = mesh->REV_Euler( cell_bb, bb, endTime, particle );
 		stat = mesh->REV_RK4( cell_bb, bb, endTime, particle );
 	}

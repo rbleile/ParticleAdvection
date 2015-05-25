@@ -1,4 +1,4 @@
-#include "Particle.h"
+#include <Particle.h>
 
 //Function for checking floating point equvalence to epsilon error
 inline bool almostEqual( float ip1, float ip2 )

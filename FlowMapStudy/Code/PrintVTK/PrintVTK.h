@@ -6,6 +6,8 @@
 #ifndef PRINT_VTK_H
 #define PRINT_VTK_H
 
+void printVtkFTLE( int nx, int ny, int nz, double xmin, double ymin, double zmin, double dx, double dy, double dz, double *FTLE1, double *FTLE2, double *FTLEDiff );
+
 using std::string;
 
 class VTKFilePrinter
@@ -18,6 +20,7 @@ class VTKFilePrinter
 	double origin[3];
 	bool **data;
 	double **diff;
+//	double **ftle;
 	string baseName;
 	
   public:
@@ -44,6 +47,7 @@ class VTKFilePrinter
 
 		data = db;
 		diff = dd;
+//		ftle = le;
 
 		baseName = s;
 	}

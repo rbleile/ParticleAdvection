@@ -1,6 +1,5 @@
 //Local Includes
-#include "Mesh.h"
-#include "Flow.h"
+#include <Mesh.h>
 
 //Library Includes
 #include <cmath>
@@ -393,9 +392,9 @@ inline void stepBackToBoundry( Particle &particle, double* bbox, double *vel, do
 inline int checkBoundary( Particle particle, double* bbox )
 {
 
-    if( particle.x > bbox[0] && particle.x < bbox[1] &&
-        particle.y > bbox[2] && particle.y < bbox[3] &&
-        particle.z > bbox[4] && particle.z < bbox[5] )
+    if( particle.x >= bbox[0] && particle.x <= bbox[1] &&
+        particle.y >= bbox[2] && particle.y <= bbox[3] &&
+        particle.z >= bbox[4] && particle.z <= bbox[5] )
     {
         return 1;
     }
@@ -452,28 +451,14 @@ inline int onZ( Particle particle, double* bbox )
 -		return codes ( 0 - kill, 1 - keep going, 2 - reevaluate flows )
 -
 ***************************************************************************************************/
-inline int checkStep( Particle &particle, double endTime, double* bbox, double* mBB, double* vel, double dt, int toPrint )
+inline int checkStep( Particle &particle, double endTime, double* bbox, double* mBB, double* vel, double dt )
 {
-
-	if( toPrint )
-	{
-		cerr << "Out Pos: " << particle.x << " " << particle.y << " " << particle.z << endl; 
-		cerr << "Out Vel: " << vel[0] << " " << vel[1] << " " << vel[2] << endl;
-		cerr << "Bbox:    " << bbox[0] << " " << bbox[1] << " \t " << bbox[2] << " " << bbox[3] << " \t " << bbox[4] << " " << bbox[5] << endl;
-	}
 
 	if( !checkBoundary(particle, bbox) ){ 
 
 		int inMesh = checkBoundary(particle, mBB); // Check if particle has left mesh entirely
 
 		stepBackToBoundry( particle, bbox, vel, dt );
-
-		if( toPrint )
-		{
-			cerr << "Out Pos: " << particle.x << " " << particle.y << " " << particle.z << endl; 
-			cerr << "Out Vel: " << vel[0] << " " << vel[1] << " " << vel[2] << endl;
-			cerr << "Bbox:    " << bbox[0] << " " << bbox[1] << " \t " << bbox[2] << " " << bbox[3] << " \t " << bbox[4] << " " << bbox[5] << endl;
-		}
 
 		if( !inMesh ) return 0;
 		else          return 2;
@@ -528,7 +513,7 @@ int Mesh::Euler( double* bbox, double* mbb, double endTime, Particle &particle )
         return 0;
 	}
 
-	return checkStep( particle, endTime, bbox, mbb, vel, dt, 0 );
+	return checkStep( particle, endTime, bbox, mbb, vel, dt );
 }
 
 int Mesh::RK4( double* bbox, double* mbb, double endTime, Particle &particle )
@@ -601,18 +586,12 @@ int Mesh::RK4( double* bbox, double* mbb, double endTime, Particle &particle )
         return 0;
 	}
 
-	return checkStep( particle, endTime, bbox, mbb, vel, dt, toPrint ); 
+	return checkStep( particle, endTime, bbox, mbb, vel, dt ); 
 
 }
 
 int Mesh::REV_RK4( double* bbox, double* mbb, double endTime, Particle &particle )
 {
-
-	int toPrint = 0;
-	if( almostEqual( particle.x, 1.80909 ) && almostEqual( particle.y, 0.0 ) && almostEqual( particle.z, -0.205637 ) )
-	{
-		toPrint = 1;
-	}
 
     double k1[3];
     double k2[3];
@@ -624,7 +603,7 @@ int Mesh::REV_RK4( double* bbox, double* mbb, double endTime, Particle &particle
 
     if( particle.t + dt < endTime )
     {
-        dt = particle.t - endTime;
+        dt = endTime - particle.t;
     }
 
     getVelocity( rkpart, k1 );     
@@ -673,7 +652,7 @@ int Mesh::REV_RK4( double* bbox, double* mbb, double endTime, Particle &particle
         return 0;
 	}
 
-	return checkStep( particle, endTime, bbox, mbb, vel, dt, toPrint ); 
+	return checkStep( particle, endTime, bbox, mbb, vel, dt ); 
 
 }
 

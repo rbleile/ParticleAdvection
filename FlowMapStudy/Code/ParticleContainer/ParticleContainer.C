@@ -1,6 +1,4 @@
-#include "ParticleContainer.h"
-#include "Particle.h"
-#include "Mesh.h"
+#include <ParticleContainer.h>
 
 ParticleContainer::ParticleContainer( Particle *p, long int nump )
 {
@@ -8,18 +6,18 @@ ParticleContainer::ParticleContainer( Particle *p, long int nump )
 	particle = p;
 }
 
-ParticleContainer::ParticleContainer( Flow *fl, long int nump )
+ParticleContainer::ParticleContainer( Flow *fl, long int nump, double stepsize )
 {
 	numParticles = nump;
 	particle = new Particle [numParticles];
 	for( long int np=0; np < numParticles; np++ )
 	{
 		particle[np].setPoint( fl[np].out.x, fl[np].out.y, fl[np].out.z );
-		particle[np].setStepSize( 0.001 );
+		particle[np].setStepSize( stepsize );
 	}
 }
 
-void BuildParticleContainerPlanar( Mesh* Fmesh, long int UmeshN[3], long int UmeshD[3], Particle* &particle, long int numP )
+void BuildParticleContainerPlanar( Mesh* Fmesh, long int UmeshN[3], long int UmeshD[3], Particle* &particle, long int numP, double stepsize )
 {
 
 	particle = new Particle [ numP ];
@@ -55,14 +53,14 @@ void BuildParticleContainerPlanar( Mesh* Fmesh, long int UmeshN[3], long int Ume
 					particle[id].y = y;
 					particle[id].z = z;
 					particle[id].t = 0.0;
-					particle[id].setStepSize( STEPSIZE );
+					particle[id].setStepSize( stepsize );
 				}
 			}
 		}
 	}
 }
 
-void BuildParticleContainerFullX2( Mesh* mesh, Particle* &pl, long int &numP )
+void BuildParticleContainerFullX2( Mesh* mesh, Particle* &pl, long int &numP, double stepsize )
 {
 	long int nx = mesh->nx*2;
 	long int ny = mesh->ny*2;
@@ -91,7 +89,7 @@ void BuildParticleContainerFullX2( Mesh* mesh, Particle* &pl, long int &numP )
 				pl[id].x = x0 + x*dx;
 				pl[id].y = y0 + y*dy;
 				pl[id].z = z0 + z*dz;
-				pl[id].setStepSize( STEPSIZE );
+				pl[id].setStepSize( stepsize );
 
 			}
 		}
@@ -100,7 +98,7 @@ void BuildParticleContainerFullX2( Mesh* mesh, Particle* &pl, long int &numP )
 }
 
 
-void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP )
+void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP, double stepsize )
 {
 	long int nx = mesh->nx;
 	long int ny = mesh->ny;
@@ -129,7 +127,7 @@ void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP )
 				pl[id].x = x0 + x*dx;
 				pl[id].y = y0 + y*dy;
 				pl[id].z = z0 + z*dz;
-				pl[id].setStepSize( STEPSIZE );
+				pl[id].setStepSize( stepsize );
 
 			}
 		}
@@ -139,30 +137,30 @@ void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP )
 
 }
 
-void BuildParticleContainerOne( Particle* &pl )
+void BuildParticleContainerOne( Particle* &pl, double stepsize )
 {
 	pl = new Particle [1];
 	pl[0].x = 0.646207;
 	pl[0].y = 1.55423;
 	pl[0].z = -0.0348686;
-	pl[0].setStepSize( STEPSIZE );
+	pl[0].setStepSize( stepsize );
 }
 
-void BuildParticleContainerTwo( Particle* &pl )
+void BuildParticleContainerTwo( Particle* &pl, double stepsize )
 {
 	pl = new Particle [2];
 	pl[0].x = 1.0;
 	pl[0].y = 1.0;
 	pl[0].z = 1.0;
-	pl[0].setStepSize( STEPSIZE );
+	pl[0].setStepSize( stepsize );
 
 	pl[1].x = -1.0;
 	pl[1].y = -1.0;
 	pl[1].z = -1.0;
-	pl[1].setStepSize( STEPSIZE );
+	pl[1].setStepSize( stepsize );
 }
 
-void BuildParticleContainerCube( Particle* &pl, double bb[], int np )
+void BuildParticleContainerCube( Particle* &pl, double bb[], int np, double stepsize )
 {
 	pl = new Particle [np*np*np];
 
@@ -178,7 +176,7 @@ void BuildParticleContainerCube( Particle* &pl, double bb[], int np )
 		pl[i].x = bb[0] + dx*x;
 		pl[i].y = bb[2] + dy*y;
 		pl[i].z = bb[4] + dz*z;
-		pl[i].setStepSize( STEPSIZE );
+		pl[i].setStepSize( stepsize );
 	}}}
 }
 

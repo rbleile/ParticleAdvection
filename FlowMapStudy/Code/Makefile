@@ -7,11 +7,12 @@ CPP_COMPILER=icpc
 #OPLVL=-O2
 OPLVL=-O3
 
-COMPILE_FLAGS=-fopenmp
+COMPILE_FLAGS=-openmp
 
 INCLUDE_DIRS=-IDomainMesh/ -IFlow/ -IMesh/ -IParticle/ -IParticleContainer/ -IPrintVTK/ -IProblem/
 
-tokC=Problem/PA_Tokamak.C
+tokC=Problem/Tokamak.C
+stokC=Problem/Tokamak_small.C
 
 domC=DomainMesh/DomainMesh.C
 domH=DomainMesh/DomainMesh.h
@@ -45,8 +46,13 @@ avpC=Problem/AdvectParticles.C
 avpH=Problem/AdvectParticles.h
 avpO=Problem/AdvectParticles.o
 
+ftleC=Problem/FTLE.C
+ftleH=Problem/FTLE.h
+ftleO=Problem/FTLE.o
+
 OBJ=\
 	$(ptkO) \
+	$(ftleO) \
 	$(avpO) \
 	$(domO) \
 	$(meshO) \
@@ -57,35 +63,39 @@ OBJ=\
 
 EPSILON=0.000001
 
-STEPSIZE=0.001
+VARS=-Depsilon=$(EPSILON)
 
-VARS=-Depsilon=$(EPSILON) -DSTEPSIZE=$(STEPSIZE)
-
-all: Tokamak 
+all: Tokamak TokamakS
 
 Tokamak: $(tokC) $(OBJ)
 	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(tokC) $(OBJ) -o bin/runTokamak.out
 
+TokamakS: $(stokC) $(OBJ)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(stokC) $(OBJ) -o bin/runTokamak_small.out
+
 $(ptkO): $(ptkH) $(ptkC)
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) -c $(ptkC) -o $(ptkO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(ptkC) -o $(ptkO)
 
-$(avpO): $(avpH) $(avpC) $(domO)
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(avpC) $(domO) -o $(avpO)
+$(ftleO): $(ftleH) $(ftleC) $(parO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) -c $(ftleC) -o $(ftleO)
 
-$(domO): $(domH) $(domC) $(pcnO)
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(domC) $(pcnO) -o $(domO)
+$(avpO): $(avpH) $(avpC) $(domO) $(meshO) $(pcnO) $(parO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(avpC) -o $(avpO)
 
-$(pcnO): $(pcnH) $(pcnC) $(meshO)
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(pcnC) $(meshO) -o $(pcnO) 
+$(domO): $(domH) $(domC) $(parO) $(floO) $(meshO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(domC) -o $(domO)
 
-$(meshO): $(meshH) $(meshC) $(floO)
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(meshC) $(floO) -o $(meshO)
+$(pcnO): $(pcnH) $(pcnC) $(meshO) $(parO) $(floO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(pcnC) -o $(pcnO) 
 
-$(floO): $(floH) $(floC) $(parO) 
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(floC) $(parO) -o $(floO) 
+$(meshO): $(meshH) $(meshC) $(parO) $(floO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(meshC) -o $(meshO)
+
+$(floO): $(floH) $(floC) $(pntO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(floC) -o $(floO) 
 
 $(parO): $(parH) $(parC) $(pntO) 
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(parC) $(pntO) -o $(parO)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(parC) -o $(parO)
 
 $(pntO): $(pntH) $(pntC)
 	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) -c $(pntC) -o $(pntO)

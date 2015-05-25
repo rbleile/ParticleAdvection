@@ -1,9 +1,9 @@
 #ifndef DOMAINMESH_H
 #define DOMAINMESH_H
 
-#include "Mesh.h"
-#include "Flow.h"
-#include "Particle.h"
+#include <Mesh.h>
+#include <Flow.h>
+#include <Particle.h>
 
 class DomainMesh
 {
@@ -138,7 +138,7 @@ class DomainMesh
 	void fillInFlows();
 	void setFlowsCellIDs();
 
-	int EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle, int toPrint );
+	int EulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle );
 	int ReverseEulerCellAdvection( long int cellID, double endTime, double* bb, Particle &particle );
 
 	long int computeAllAcceptableFlows();

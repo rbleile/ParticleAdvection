@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cmath>
 
-#include "Point.h"
+#include <Point.h>
 
 using std::ostream;
 using std::cerr;

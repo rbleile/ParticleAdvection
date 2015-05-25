@@ -1,4 +1,4 @@
-#include "Point.h"
+#include <Point.h>
 #include <cmath>
 #include <ostream>
 #include <iostream>
@@ -27,6 +27,16 @@ class Particle : public Point
   public:
 	int FID;
 
+	Particle(){};
+	Particle( Particle *p )
+	{
+		x = p->x;
+		y = p->y;
+		z = p->z;
+		t = p->t;
+		stepSize = p->getStepSize();
+		FID = p->FID;
+	}
 	double getStepSize();
 	void setStepSize( double ss);
 	void setFID( double* bbox);

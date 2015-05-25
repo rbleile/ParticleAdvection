@@ -4,8 +4,129 @@
 #include <fstream>
 #include <cstring>
 #include <cfloat>
+#include <cmath>
 
 using namespace std;
+
+void printVtkFTLE( int nx, int ny, int nz, double xmin, double ymin, double zmin, double dx, double dy, double dz, double *FTLE1, double *FTLE2, double *FTLEDiff )
+{
+
+	/*The Uber Mesh*/
+	stringstream smesh;
+	smesh << "# vtk DataFile Version 3.0" << endl;
+	smesh << "vtk output" << endl;
+	smesh << "ASCII" << endl;
+	smesh << "DATASET RECTILINEAR_GRID" << endl;
+	smesh << "DIMENSIONS " << nx << " " << ny << " " << nz << endl;
+	smesh << "X_COORDINATES " << nx << " float" << endl;
+	for( long int i = 0; i < nx; i++ )	smesh << xmin + dx*i << " ";
+	smesh << endl;
+
+	smesh << "Y_COORDINATES " << ny << " float" << endl;
+	for( long int i = 0; i < ny; i++ )	smesh << ymin + dy*i << " ";
+	smesh << endl;
+
+	smesh << "Z_COORDINATES " << nz << " float" << endl;
+	for( long int i = 0; i < nz; i++ )	smesh << zmin + dz*i << " ";
+	smesh << endl;
+
+	smesh << "POINT_DATA " << nx*ny*nz << endl;
+	smesh << "SCALARS FTLEDiff float" << endl;
+	smesh << "LOOKUP_TABLE default" << endl;
+
+	double total_diff = 0.0;
+	int num_nonz = 0;
+
+	for( int i = 0; i < nx*ny*nz; i++ )
+	{
+		if( i%9 == 0 && i != 0 )
+		{
+			smesh << endl;
+		}
+
+		total_diff += FTLEDiff[i];
+		if( FTLEDiff[i] != 0.0 )
+		{
+			num_nonz++;
+		} 
+
+		smesh << FTLEDiff[i] << " ";
+
+	}
+
+	cerr << "FTLE Non Zero Average Diff: " << total_diff / ( ( num_nonz == 0 ) ? 1 : num_nonz  ) << endl;
+	cerr << "FTLE Total Average Diff:    " << total_diff / ( nx*ny*nz) << endl;
+
+	smesh << endl;
+
+	smesh << "FIELD FieldData 3" << endl; 
+	smesh << "FTLE1 1 " << nx*ny*nz << " float" << endl;
+
+	for( int i = 0; i < nx*ny*nz; i++ )
+	{
+		if( i%9 == 0 && i != 0 )
+		{
+			smesh << endl;
+		}
+		
+		smesh << FTLE1[i] << " ";
+
+	}
+
+	smesh << endl;
+
+	smesh << "FTLE2 1 " << nx*ny*nz << " float" << endl;
+
+	for( int i = 0; i < nx*ny*nz; i++ )
+	{
+		if( i%9 == 0 && i != 0 )
+		{
+			smesh << endl;
+		}
+		
+		smesh << FTLE2[i] << " ";
+
+	}
+
+	smesh << endl;
+
+	double total_pdiff = 0.0;
+	int num_nonz_p = 0;
+
+	smesh << "FTLE_percent_diff 1 " << nx*ny*nz << " float" << endl;
+
+	for( int i = 0; i < nx*ny*nz; i++ )
+	{
+		if( i%9 == 0 && i != 0 )
+		{
+			smesh << endl;
+		}
+
+		double avgFTLE = ( FTLE1[i] + FTLE2[i] ) / 2.0;
+		double pdiff = (( fabs( FTLE1[i] - FTLE2[i] )) / ((avgFTLE==0) ? 1 : avgFTLE ))*100;
+
+		total_pdiff += pdiff;
+		if( pdiff != 0.0 )
+		{
+			num_nonz_p++;
+		} 
+
+		
+		smesh << pdiff << " ";
+
+	}
+
+	smesh << endl;
+
+	cerr << "FTLE Non Zero Average Percent Diff: " << total_pdiff / ( ( num_nonz_p == 0 ) ? 1 : num_nonz_p  )  << "%" << endl;
+	cerr << "FTLE Total Average Percent Diff:    " << total_pdiff / ( nx*ny*nz) << "%" << endl;
+
+	string fname = "FTLE_OUT.vtk";
+	ofstream outM( fname.c_str() );
+	outM << smesh.rdbuf();
+	outM.close();
+
+}
 
 void VTKFilePrinter::printVtkDs()
 {
@@ -232,6 +353,6 @@ void VTKFilePrinter::printVtkDs()
 	}// d
 
 	cerr << endl;
-	cerr << "Total Avg: " << totAVG / totSum << endl;
+	cerr << "Total Avg: " << totAVG / ((totSum==0)?1:totSum) << endl;
 
 }
