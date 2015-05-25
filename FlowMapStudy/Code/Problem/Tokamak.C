@@ -450,7 +450,7 @@ int main( int argc, char** argv )
 
 				if( ADVECT_PARTICLES != 3 )
 				{
-					cerr << "Can only do FTLE for full point seeding currently" << endl;
+					cerr << "Can only do FTLE for full point seeding currently - ADVECT_PARTICLES==3" << endl;
 				}
 				else
 				{

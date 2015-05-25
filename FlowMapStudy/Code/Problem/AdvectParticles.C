@@ -430,7 +430,7 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 	int totalL = 0;
 	int totalE = 0;
 
-	#pragma omp parallel for shared ( nonZeroParticle, totalL, totalE ) schedule(static,1) 
+	#pragma omp parallel for shared ( nonZeroParticle, totalL, totalE ) schedule(dynamic,1) 
 	for( long int i = 0; i < numParticles; i++ ){
 
 		Particle &particle = advectList->particle[i];

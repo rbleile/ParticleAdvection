@@ -58,7 +58,10 @@ double compute_FTLE( int x_id, int y_id, int z_id, const long int nx, const long
 						es.eigenvalues()[2].real();
 
 		// Compute the maximum eigenValue
+
 		double delta = eigenValues.maxCoeff();
+
+		if( delta == 0.0 ){ return 0.0; }
 
 //Given endTime is in units where start time is 0. else do endTime-startTime		
 		// return value for ftle computation
