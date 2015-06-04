@@ -537,6 +537,11 @@ int Mesh::RK4( double* bbox, double* mbb, double endTime, Particle &particle )
 
     if( particle.t + dt > endTime )
     {
+		if( particle.t > endTime )
+		{
+			//cerr << "RK4 ERROR: Particle past endtime already" << endl;
+			return 0;
+		}
         dt = endTime - particle.t;
     }
 
