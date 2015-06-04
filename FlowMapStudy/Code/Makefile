@@ -7,7 +7,8 @@ CPP_COMPILER=icpc
 #OPLVL=-O2
 OPLVL=-O3
 
-COMPILE_FLAGS=-openmp
+#COMPILE_FLAGS=-openmp
+COMPILE_FLAGS= -Wall
 
 INCLUDE_DIRS=-IDomainMesh/ -IFlow/ -IMesh/ -IParticle/ -IParticleContainer/ -IPrintVTK/ -IProblem/
 
