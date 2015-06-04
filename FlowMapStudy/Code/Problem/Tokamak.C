@@ -326,12 +326,21 @@ int main( int argc, char** argv )
 			int cbe = 3;
 			int numParticlesPerCube = 27;
 
-			double samDx = (xmax-xmin)/(double)numSamples;
-			double samDy = (ymax-ymin)/(double)numSamples;
-			double samDz = (zmax-zmin)/(double)numSamples;
+			double SampleXmax = 1.0;
+			double SampleXmin = 1.0;
+			double SampleYmax = 1.0;
+			double SampleYmin = 1.0;
+			double SampleZmax = 0.75;
+			double SampleZmin = 0.75;
+
+			double samDx = (SampleXmax-SampleXmin)/(double)numSamples;
+			double samDy = (SampleYmax-SampleYmin)/(double)numSamples;
+			double samDz = (SampleZmax-SampleZmin)/(double)numSamples;
 			double deltaX = 0.01*samDx;
 			double deltaY = 0.01*samDy;
 			double deltaZ = 0.01*samDz;
+
+			cerr << samDx << " " << samDy << " " << samDz << endl;
 
 			double totalLagrange = 0.0;
 			double totalEuler = 0.0;
@@ -349,9 +358,9 @@ int main( int argc, char** argv )
 
 						int sampleID = samplesX + samplesY*numSamples + samplesZ*numSamples*numSamples;
 
-						double xp = xmin + samplesX*samDx;
-						double yp = ymin + samplesY*samDy;
-						double zp = zmin + samplesZ*samDz;
+						double xp = SampleXmin + samplesX*samDx;
+						double yp = SampleYmin + samplesY*samDy;
+						double zp = SampleZmin + samplesZ*samDz;
 					
 						double cube[6] = { xp-deltaX, xp+deltaX, yp-deltaY, yp+deltaY, zp-deltaZ, zp+deltaZ };
 
