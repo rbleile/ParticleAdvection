@@ -597,8 +597,9 @@ int main( int argc, char** argv )
 					BuildParticleContainerFull( &FineMesh, inputPoints, numParticles, STEPSIZE );
 					#endif
 
-					#if DO_MPI
 					int totalNumP = nx*ny*nz;
+
+					#if DO_MPI
 	
 					int start_id = rank*(totalNumP/numProcs);
 					int end_id = start_id + (totalNumP/numProcs);
