@@ -1,5 +1,5 @@
-#CPP_COMPILER=g++
-CPP_COMPILER=mpic++
+CPP_COMPILER=g++
+#CPP_COMPILER=mpic++
 #CPP_COMPILER=icpc
 
 #OPLVL=-g
@@ -65,7 +65,7 @@ OBJ=\
 	$(pntO) 
 
 EPSILON=0.000001
-DO_MPI=1
+DO_MPI=0
 
 VARS=-Depsilon=$(EPSILON) -DDO_MPI=$(DO_MPI)
 
