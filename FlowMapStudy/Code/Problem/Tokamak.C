@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <sstream>
 
 #include <DomainMesh.h>
 #include <Mesh.h>
@@ -22,6 +23,7 @@ using std::ios;
 
 using std::min;
 using std::max;
+using std::stringstream;
 
 #include <sys/time.h>
 
@@ -37,15 +39,48 @@ using std::max;
     now = t.tv_sec + t.tv_usec/1000000.0; \
 }
 
+#ifndef DO_MPI
+#define DO_MPI 0
+#else
+#include "mpi.h"
+#endif
 
+
+void serializeParticles(int start_id, int end_id, int size, double *message, ParticleContainer *advectList);
+void serializeParticles(int size, double *mailbox, Particle *particle);
 //Arguments:
 //  1  2  3  4       5         6       7                8        9
 //	Nx Ny Nz ENDTIME PRINT_VTK DO_FTLE ADVECT_PARTICLES STEPSIZE Samples_cubic
 //
+//
+void usage(char* argv[]){
+	cout << endl << "Usage for " << argv[0] << "." << endl;
+	cout << argv[0] << " accepts the following command line flags along with their default values." << endl << endl;
+	cout << "-nx(3)\t\tThe number of points on the domain mesh in the x direction." << endl;	
+	cout << "-ny(3)\t\tThe number of points on the domain mesh in the y direction." << endl;
+	cout << "-nz(2)\t\tThe number of points on the domain mesh in the z direction." << endl;
+	cout << "-t(10)\t\tThe end time of the particle simulation, start time is always 0." << endl;
+	cout << "-p(1)\t\tPrint to VTK files or not. Should be 0 (off) or 1 (on)." << endl;
+	cout << "-ftle(1)\tPerform an FTLE calculation or not. Should be 0 (off) or 1 (on)." << endl;
+	cout << "-a(7)\t\tControls how to seed the mesh with particles and the advection process. Should be one of 0 through 7." << endl;
+	cout << "-step(0.001)\tStepsize for the Eulerian algorithm." << endl;
+	cout << "-c(10)\t\tNumber of samples in each of x, y and z directions. Requires -a flag to have a value of 7." << endl;
+	cout << "-u, -usage\tPrints this usage message." << endl;
+	cout << endl;
+}
 
 
 int main( int argc, char** argv )
 {
+	int numProcs, rank;
+
+#if DO_MPI
+	MPI_Init(&argc, &argv);
+	MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
+	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+#else
+	rank = 0;
+#endif
 
 	double EndTime = 10;
 
@@ -63,41 +98,78 @@ int main( int argc, char** argv )
 	long int fny = 3;	
 	long int fnz = 2;
 
-	if( argc >= 4 )
+	for(int flag = argc; flag > 0; flag--){
+		if(!strcmp(argv[flag-1],"-nx")) fnx = atol( argv[flag] );
+		if(!strcmp(argv[flag-1],"-ny")) fny = atol( argv[flag] );
+		if(!strcmp(argv[flag-1],"-nz")) fnz = atol( argv[flag] );
+		if(!strcmp(argv[flag-1],"-t")) EndTime = strtod( argv[flag], NULL );
+		if(!strcmp(argv[flag-1],"-p")) PRINT_VTK = atoi( argv[flag] );
+		if(!strcmp(argv[flag-1],"-ftle")) DO_FTLE = atoi( argv[flag] );
+		if(!strcmp(argv[flag-1],"-a")) ADVECT_PARTICLES = atoi( argv[flag] );
+		if(!strcmp(argv[flag-1],"-step")) STEPSIZE = strtod( argv[flag], NULL );
+		if(!strcmp(argv[flag-1],"-c")) Samples_cubic = strtod (argv[flag], NULL );
+		if(!strcmp(argv[flag-1],"-u") || !strcmp(argv[flag-1],"-usage")){
+			usage(argv);
+			return 0;
+		}
+	}
+
+	if( fnx < 2 )
 	{
-		fnx = atol( argv[1] );	
-		fny = atol( argv[2] );	
-		fnz = atol( argv[3] );	
+		cerr << "fnx is less than 2, please use a value greater than 2." << endl;
+		usage(argv);
+		return 1;
+	}
+	if( fny < 2 )
+	{
+		cerr << "fny is less than 2, please use a value greater than 2." << endl;
+		usage(argv);
+		return 1;
+	}
+
+	if( fnz < 2 )
+	{
+		cerr << "fnz is less than 2, please use a value greater than 2." << endl;
+		usage(argv);
+		return 1;
+	}
+
+	if( ADVECT_PARTICLES < 0 || ADVECT_PARTICLES > 7 )
+	{
+		cerr << "ADVECT_PARTICLES is not valid, should be between 0 and 7 (inclusive)." << endl;
+		usage(argv);
+		return 1;
+	}
+	if(PRINT_VTK != 0 && PRINT_VTK != 1){
+		cerr << "PRINT_VTK is not valid, should be 0 or 1." << endl;
+		usage(argv);
+		return 1;
+	}
+
+	if( DO_FTLE != 0 && DO_FTLE != 1 )
+	{
+		cerr << "DO_FTLE is not valid, should be 0 or 1." << endl;
+		usage(argv);
+		return 1;
+	}
+
+	if( STEPSIZE <= 0 )
+	{
+		cerr << "STEPSIZE should be greater than 0." << endl; 
+		usage(argv);
+		return 1;
+	}
+	if(EndTime <= 0 ){
+		cerr << "EndTime should be greater than 0." << endl;
+		usage(argv);
+		return 1;
 	}
 	
-	if( argc >= 5 )
+	if( Samples_cubic < 1 )
 	{
-		EndTime = strtod( argv[4], NULL );
-	}
-
-	if( argc >= 6 )
-	{
-		PRINT_VTK = atoi( argv[5] );	
-	}
-
-	if( argc >= 7 )
-	{
-		DO_FTLE = atoi( argv[6] );	
-	}
-
-	if( argc >= 8 )
-	{
-		ADVECT_PARTICLES = atoi( argv[7] );
-	}
-
-	if( argc >= 9 )
-	{
-		STEPSIZE = strtod( argv[8], NULL );
-	}
-	
-	if( argc >= 10 )
-	{
-		Samples_cubic = strtod( argv[9], NULL );
+		cerr << "Samples_cubic should be at least 1." << endl;
+		usage(argv);
+		return 1;
 	}
 
 
@@ -115,7 +187,9 @@ int main( int argc, char** argv )
     const long int ny = 300;
     const long int nz = 300;
 
-    double* v_field = new double [ 3 * nx * ny * nz ];
+	long int size = nx*ny*nz*3;
+    double* v_field = new double [ size ];
+	float *buff = new float [ size ];
 
 // The minimum Corner of the Mesh
     double xmin = -2.44577;
@@ -134,20 +208,31 @@ int main( int argc, char** argv )
 
 	double BoundBox[6] = { xmin, xmax, ymin, ymax, zmin, zmax };
 
-	cout << "\t\tReading Data Set" << endl;
+#if DO_MPI
+	if( rank == 0 )
+	{
+#endif
+		cout << "\t\tReading Data Set" << endl;
 
-	long int size = nx*ny*nz*3;
-	long int byteSize = size*sizeof(float);
-	
-	ifstream is( "/home/user/Research/DATA/nimrod", ios::in | ios::binary );
+		long int byteSize = size*sizeof(float);
+		
+		ifstream is( "/home/user/Research/DATA/nimrod", ios::in | ios::binary );
 
-	float *buff = new float [ size ];
+		is.read( reinterpret_cast<char*>(buff), byteSize );
 
-	is.read( reinterpret_cast<char*>(buff), byteSize );
+		is.close();
+#if DO_MPI
+	}
 
-	is.close();
+	MPI_Bcast( buff, size, MPI_FLOAT, 0, MPI_COMM_WORLD );
 
-    cout << "\t\tBuilding Velocity Field" << endl;
+	if( rank == 0 )
+	{
+#endif
+		cout << "\t\tBuilding Velocity Field" << endl;
+#if DO_MPI
+	}
+#endif
 
     for( long int z = 0; z < nz; z++ ){
         for( long int y = 0; y < ny; y++ ){
@@ -261,7 +346,6 @@ int main( int argc, char** argv )
 
 	cout << "[----------- END -----------]" << endl;
 
-
 	if( ADVECT_PARTICLES != 0 )
 	{
 		cout << "Building Advection List" << endl;
@@ -280,7 +364,11 @@ int main( int argc, char** argv )
 		}
 		else if (ADVECT_PARTICLES == 3 )
 		{
+			#if DO_MPI
+			BuildParticleContainerFull( &FineMesh, advectionList, numParticles, STEPSIZE, rank, numProcs );
+			#else
 			BuildParticleContainerFull( &FineMesh, advectionList, numParticles, STEPSIZE );
+			#endif
 		}
 		else if (ADVECT_PARTICLES == 4 )
 		{
@@ -296,7 +384,7 @@ int main( int argc, char** argv )
 		{
 
 			long int uN[3] = { UberMesh.nx, UberMesh.ny, UberMesh.nz };
-			long int uD[3] = { UberMesh.dx, UberMesh.dy, UberMesh.dz };
+			double uD[3] = { UberMesh.dx, UberMesh.dy, UberMesh.dz };
 
 
 			cerr << "Building Particles" << endl;
@@ -376,7 +464,7 @@ int main( int argc, char** argv )
 						GET_TIME( eul_end );
 
 						GET_TIME( lag_start );
-						AdvectParticleList( &FineMesh, &UberMesh, &advectListL, EndTime, BoundBox, totalL, totalE );
+						//DEBUG AdvectParticleList( &FineMesh, &UberMesh, &advectListL, EndTime, BoundBox, totalL, totalE );
 						GET_TIME( lag_end );
 
 						totalLagrange += lag_end-lag_start;
@@ -430,6 +518,7 @@ int main( int argc, char** argv )
 		if( ADVECT_PARTICLES != 7 )
 		{
 
+			
 			ParticleContainer advectList( advectionList, numParticles );
 
 			cout << "Advecting Particle List" << endl;
@@ -440,15 +529,26 @@ int main( int argc, char** argv )
 			int totalE = 0;
 
 			GET_TIME (Lagrange_Full_Start );
+			#if DO_MPI
+			AdvectParticleList( &FineMesh, &UberMesh, &advectList, EndTime, BoundBox, totalL, totalE, rank, numProcs );
+			cerr << "Never touched." << endl;
+			#else	
 			AdvectParticleList( &FineMesh, &UberMesh, &advectList, EndTime, BoundBox, totalL, totalE );
+			#endif
 			GET_TIME (Lagrange_Full_End );
 			
-			cerr << "Total Lagrangian Steps: " << totalL << endl;
-			cerr << "Total Eulerian Steps:   " << totalE << endl;
-			cerr << "Average Lagrange PP:    " << (double)totalL / (double)(numParticles) << endl;
-			cerr << "Average Eulerian PP:    " << (double)totalE / (double)(numParticles) << endl;
-			cerr << "Percent Lagrange Steps: " << ((double)totalL / (double)( totalL + totalE ) )* 100.0 << endl;
+			stringstream mpi_cerr;		
+	
+			mpi_cerr << endl;
+			mpi_cerr << rank << ": Total Lagrangian Steps: " << totalL << endl;
+			mpi_cerr << rank << ": Total Eulerian Steps:   " << totalE << endl;
+			mpi_cerr << rank << ": Average Lagrange PP:    " << (double)totalL / (double)(numParticles) << endl;
+			mpi_cerr << rank << ": Average Eulerian PP:    " << (double)totalE / (double)(numParticles) << endl;
+			mpi_cerr << rank << ": Percent Lagrange Steps: " << ((double)totalL / (double)( totalL + totalE ) )* 100.0 << endl;
 
+			mpi_cerr << endl;
+
+			cerr << mpi_cerr.rdbuf();
 
 			if( DO_FTLE != 0 )
 			{
@@ -459,15 +559,22 @@ int main( int argc, char** argv )
 
 				if( ADVECT_PARTICLES != 3 )
 				{
-					cerr << "Can only do FTLE for full point seeding currently - ADVECT_PARTICLES==3" << endl;
+					cerr << "Can only do FTLE for full point seeding currently" << endl;
 				}
 				else
 				{
-					
+
+					/* We need to pull all particles into global list for everyone to have. ALL Reduce?  */	
+
 					cerr << "Building Advection Lists for Euler only run" << endl;
 
 					Particle* eulerOnly;
-					BuildParticleContainerFull( &FineMesh, eulerOnly, numParticles, STEPSIZE );		
+					#if DO_MPI
+					BuildParticleContainerFull( &FineMesh, eulerOnly, numParticles, STEPSIZE, rank, numProcs );
+					#else
+					BuildParticleContainerFull( &FineMesh, eulerOnly, numParticles, STEPSIZE );
+					#endif
+					
 					ParticleContainer advectList2( eulerOnly, numParticles );
 
 					cerr << "Advecting euler list" << endl;		
@@ -479,19 +586,104 @@ int main( int argc, char** argv )
 					AdvectParticleList( &FineMesh, &advectList2, EndTime, BoundBox );
 					GET_TIME( Euler_Full_End ); 
 
-					cerr << "building input list for comparison" << endl;
+					cerr << "building input list for comparison " << endl;
 
+					#if DO_MPI
+					Particle* inputPointsL;
+					BuildParticleContainerFull( &FineMesh, inputPointsL, numParticles, STEPSIZE, rank, numProcs );
+					ParticleContainer advectList3( inputPointsL, numParticles );
+					#else
 					Particle* inputPoints;
-					BuildParticleContainerFull( &FineMesh, inputPoints, numParticles, STEPSIZE );		
+					BuildParticleContainerFull( &FineMesh, inputPoints, numParticles, STEPSIZE );
+					#endif
 
+					#if DO_MPI
+					int totalNumP = nx*ny*nz;
+	
+					int start_id = rank*(totalNumP/numProcs);
+					int end_id = start_id + (totalNumP/numProcs);
+					if( rank == numProcs - 1 )
+					{
+						end_id += totalNumP - end_id;
+					}
+	
+					MPI_Barrier(MPI_COMM_WORLD);
+
+
+					Particle* inputPoints = new Particle [totalNumP];
+					Particle* outputPoints = new Particle [totalNumP];
+					Particle* outputPoints2 = new Particle [totalNumP];
+
+					double *message = new double [4*totalNumP];
+					double *mailbox = new double [4*totalNumP];
+
+
+					memset(mailbox, 0.0, 4*totalNumP*sizeof(double));
+
+
+					fprintf( stderr, "LOOK AT ME 2: %d %d %d \n", rank, start_id, end_id );
+					serializeParticles(start_id, end_id, totalNumP, message, &advectList);
+
+					MPI_Allreduce(message, mailbox, totalNumP*4, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);						
+
+					serializeParticles(totalNumP, mailbox, outputPoints);
+
+
+					memset(mailbox, 0.0, 4*totalNumP*sizeof(double));
+					serializeParticles(start_id, end_id, totalNumP, message, &advectList2);
+					MPI_Allreduce(message, mailbox, totalNumP*4, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+					serializeParticles(totalNumP, mailbox, outputPoints2);
+
+
+					memset(mailbox, 0.0, 4*totalNumP*sizeof(double));
+					serializeParticles(start_id, end_id, totalNumP, message, &advectList3);
+					MPI_Allreduce(message, mailbox, totalNumP*4, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+					serializeParticles(totalNumP, mailbox, inputPoints);
+
+					if( message != NULL)
+					{	
+						delete [] message;
+					}
+					if( mailbox != NULL )
+					{
+						delete [] mailbox;
+					}	
+					if( inputPointsL != NULL )
+					{
+						delete [] inputPointsL;
+					}
+
+					#else
+					
 					Particle* outputPoints = advectList.particle;
 					Particle* outputPoints2 = advectList2.particle;
 
-					FTLE1	 = new double [ nx*ny*nz ];
-					FTLE2	 = new double [ nx*ny*nz ];
-					FTLEDiff = new double [ nx*ny*nz ];
+					#endif
+
+
+					
+					FTLE1	 = new double [ totalNumP ];
+					FTLE2	 = new double [ totalNumP ];
+					FTLEDiff = new double [ totalNumP ];
+
+					memset( FTLE1, 0.0, totalNumP*sizeof(double));
+					memset( FTLE2, 0.0, totalNumP*sizeof(double));
+					memset( FTLEDiff, 0.0, totalNumP*sizeof(double));
 
 					cerr << "Doing FTLE calculation" << endl;
+
+					#if DO_MPI
+				
+					#pragma omp parallel for schedule(static,1)
+					for( int id = start_id; id < end_id; id++ )
+					{
+						long int ids[3];
+						FineMesh.D1to3P( id, ids );
+						int x_id = ids[0];
+						int y_id = ids[1];
+						int z_id = ids[2];
+
+					#else
 
 					#pragma omp parallel for schedule(static,1)
 					for( int z_id = 0; z_id < nz; z_id++ ){
@@ -499,33 +691,83 @@ int main( int argc, char** argv )
 							for( int x_id = 0; x_id < nx; x_id++ )
 							{
 								unsigned int id = x_id + y_id * nx + z_id * nx * ny;
+					#endif	
 
 								FTLE1[ id ] = compute_FTLE( x_id, y_id, z_id, nx, ny, nz, inputPoints, outputPoints, EndTime ); 
 								FTLE2[ id ] = compute_FTLE( x_id, y_id, z_id, nx, ny, nz, inputPoints, outputPoints2, EndTime ); 
 
 								FTLEDiff[ id ] = fabs( FTLE1[id] - FTLE2[id] );
 
+					#if DO_MPI
+							}
+					#else
 							}
 						}
 					} 
+					#endif
 
+					#if DO_MPI
+					double *FTLE1_F, *FTLE2_F, *FTLEDiff_F;
+
+					if( rank == 0 )
+					{
+						FTLE1_F = new double [totalNumP];
+						FTLE2_F = new double [totalNumP];
+						FTLEDiff_F = new double [totalNumP];
+
+						memset( FTLE1_F, 0.0, totalNumP*sizeof(double));
+						memset( FTLE2_F, 0.0, totalNumP*sizeof(double));
+						memset( FTLEDiff_F, 0.0, totalNumP*sizeof(double));
+
+					}
+
+					MPI_Reduce( FTLE1, FTLE1_F, totalNumP, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
+					MPI_Reduce( FTLE2, FTLE2_F, totalNumP, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
+					MPI_Reduce( FTLEDiff, FTLEDiff_F, totalNumP, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
+
+					if( FTLE1 != NULL )
+					{
+						delete [] FTLE1;	
+					}
+					if( FTLE2 != NULL )
+					{
+						delete [] FTLE2;	
+					}
+					if( FTLEDiff != NULL )
+					{
+						delete [] FTLEDiff;	
+					}
+					
+					#endif
+
+					#if DO_MPI
+					if ( rank == 0 )
+					{
+						printVtkFTLE( nx, ny, nz, xmin, ymin, zmin, dx, dy, dz, FTLE1_F, FTLE2_F, FTLEDiff_F );
+					}
+					#else
 					printVtkFTLE( nx, ny, nz, xmin, ymin, zmin, dx, dy, dz, FTLE1, FTLE2, FTLEDiff );
+					#endif
+					
 
 					double Euler_Full = Euler_Full_End - Euler_Full_Start;
 					double Lagrange_Full = Lagrange_Full_End - Lagrange_Full_Start;
 				
+					stringstream mpi_cerr2;
 
-					cerr << "Timing Full: " << endl;
-					cerr << "Lagrangian: " << Lagrange_Full << endl;
-					cerr << "Eulerian:   " << Euler_Full << endl;
-					cerr << "Lagrange to Euler Full Speedup: " <<  Euler_Full / Lagrange_Full << endl;
+					mpi_cerr2 << rank << ": Timing Full: " << endl;
+					mpi_cerr2 << rank << ": Lagrangian: " << Lagrange_Full << endl;
+					mpi_cerr2 << rank << ": Eulerian:   " << Euler_Full << endl;
+					mpi_cerr2 << rank << ": Lagrange to Euler Full Speedup: " <<  Euler_Full / Lagrange_Full << endl;
+
+					cerr << mpi_cerr2.rdbuf();
 
 				}
 			}
 		}
 	}
 
-	if ( PRINT_VTK != 0 )
+	if ( PRINT_VTK != 0 && rank == 0 )
 	{
 		cout << "Printing VTK Files" << endl;
 
@@ -572,5 +814,42 @@ int main( int argc, char** argv )
 		delete [] UberMesh.AcceptableFlow[2];
 	}
 
+#if DO_MPI
+	MPI_Finalize();
+#endif
+
+}
+void serializeParticles(int size, double *mailbox, Particle *particle){
+	for(int i = 0; i < size; i++){
+		int id = i*4;
+		particle[i].x = mailbox[id];
+		particle[i].y = mailbox[id+1];
+		particle[i].z = mailbox[id+2];
+		particle[i].t = mailbox[id+3];
+	}
+}
+void serializeParticles(int start_id, int end_id, int size, double *message, ParticleContainer *advectList){
+
+	fprintf( stderr, "seriealizeParticles: %d -> %d in %d\n", start_id, end_id, size );
+
+	for(int i = 0; i < size; i++)
+	{
+		int id = i*4;
+		if(i >= start_id && i < end_id)
+		{
+			int n_i = i-start_id;
+			message[id]   = advectList->particle[n_i].x;
+			message[id+1] = advectList->particle[n_i].y;
+			message[id+2] = advectList->particle[n_i].z;
+			message[id+3] = advectList->particle[n_i].t;
+		}
+		else
+		{
+			message[id]   = 0.0;
+			message[id+1] = 0.0;
+			message[id+2] = 0.0;
+			message[id+3] = 0.0;
+		}
+	}
 }
 

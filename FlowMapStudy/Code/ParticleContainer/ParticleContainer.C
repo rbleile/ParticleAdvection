@@ -1,4 +1,9 @@
 #include <ParticleContainer.h>
+#include <cstdio>
+
+#ifndef DO_MPI
+#define DO_MPI 0
+#endif
 
 ParticleContainer::ParticleContainer( Particle *p, long int nump )
 {
@@ -17,7 +22,26 @@ ParticleContainer::ParticleContainer( Flow *fl, long int nump, double stepsize )
 	}
 }
 
-void BuildParticleContainerPlanar( Mesh* Fmesh, long int UmeshN[3], long int UmeshD[3], Particle* &particle, long int numP, double stepsize )
+void  GetMPIParticleRange( int TotalNumParticles, int& start_id, int& end_id, int rank, int numProcs )
+{ 
+	float PercentOfParticles = 1.0 / numProcs;
+
+	int ParticlesPerProc = PercentOfParticles*TotalNumParticles;
+	int ExtraParticles = TotalNumParticles - ParticlesPerProc*numProcs;
+
+	int numParticles = ParticlesPerProc;
+
+	if( rank == numProcs-1 )
+	{
+		numParticles += ExtraParticles;
+	}
+
+	start_id = rank*ParticlesPerProc;
+	end_id = start_id + numParticles;
+
+}
+
+void BuildParticleContainerPlanar( Mesh* Fmesh, long int UmeshN[3], double UmeshD[3], Particle* &particle, long int numP, double stepsize )
 {
 
 	particle = new Particle [ numP ];
@@ -97,9 +121,14 @@ void BuildParticleContainerFullX2( Mesh* mesh, Particle* &pl, long int &numP, do
 
 }
 
-
+#if DO_MPI
+void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP, double stepsize, int rank, int numProcs )
+#else
 void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP, double stepsize )
+#endif
 {
+
+
 	long int nx = mesh->nx;
 	long int ny = mesh->ny;
 	long int nz = mesh->nz;
@@ -114,8 +143,31 @@ void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP, doub
 
 	numP = nx * ny * nz;	
 
+#if DO_MPI
+
+	int start_id,end_id;
+	GetMPIParticleRange( numP, start_id, end_id, rank, numProcs );
+
+	numP = end_id-start_id;
+
+	fprintf(stderr, "Rank: %d of %d \t numP: %d \t start_id: %d \t end_id: %d \n", rank, numProcs, numP, start_id, end_id  );
+
+#endif
+
 	pl = new Particle [ numP ];
 
+#if DO_MPI
+	for( int i = start_id; i < end_id; i++ )
+	{
+		long int ids[3];
+		mesh->D1to3P( i, ids );
+		int x = ids[0];
+		int y = ids[1];
+		int z = ids[2];
+
+		int id = i - start_id;
+	
+#else
 	for( int z = 0; z < nz; z++ )
 	{
 		for( int y = 0; y < ny; y++ )
@@ -123,16 +175,18 @@ void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP, doub
 			for( int x = 0; x < nx; x++ )
 			{
 				long int id = x + nx * ( y + ( ny * z ) );
-
+#endif
 				pl[id].x = x0 + x*dx;
 				pl[id].y = y0 + y*dy;
 				pl[id].z = z0 + z*dz;
 				pl[id].setStepSize( stepsize );
-
+#if DO_MPI
+			}
+#else
 			}
 		}
 	}
-
+#endif
 	cerr << "IN: " << pl[0].x << " " << pl[0].y << " " << pl[0].z << endl;
 
 }

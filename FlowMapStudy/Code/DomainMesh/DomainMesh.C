@@ -139,7 +139,6 @@ int DomainMesh::ReverseEulerCellAdvection( long int cellID, double endTime, doub
 
 	while( stat == 1 )
 	{
-
 		//stat = mesh->REV_Euler( cell_bb, bb, endTime, particle );
 		stat = mesh->REV_RK4( cell_bb, bb, endTime, particle );
 	}
