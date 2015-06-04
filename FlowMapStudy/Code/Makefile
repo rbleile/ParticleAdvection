@@ -1,5 +1,6 @@
 #CPP_COMPILER=g++
-CPP_COMPILER=icpc
+CPP_COMPILER=mpic++
+#CPP_COMPILER=icpc
 
 #OPLVL=-g
 #OPLVL=-O0
@@ -7,7 +8,8 @@ CPP_COMPILER=icpc
 #OPLVL=-O2
 OPLVL=-O3
 
-COMPILE_FLAGS=-openmp
+#COMPILE_FLAGS=-openmp
+COMPILE_FLAGS=-fopenmp
 
 INCLUDE_DIRS=-IDomainMesh/ -IFlow/ -IMesh/ -IParticle/ -IParticleContainer/ -IPrintVTK/ -IProblem/
 
@@ -62,10 +64,14 @@ OBJ=\
 	$(pntO) 
 
 EPSILON=0.000001
+DO_MPI=1
 
-VARS=-Depsilon=$(EPSILON)
+VARS=-Depsilon=$(EPSILON) -DDO_MPI=$(DO_MPI)
 
-all: Tokamak TokamakS
+all: DIRS Tokamak TokamakS
+
+DIRS:
+	@mkdir bin -p
 
 Tokamak: $(tokC) $(OBJ)
 	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(tokC) $(OBJ) -o bin/runTokamak.out
