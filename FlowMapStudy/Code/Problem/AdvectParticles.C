@@ -17,6 +17,10 @@
 #define doCopy 0
 #endif
 
+#ifndef DO_MPI
+#define DO_MPI 0
+#endif
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -27,6 +31,9 @@ using std::min;
 using std::max;
 using std::string;
 using std::stringstream;
+
+int RANK = 0;
+int ITERPRIME = 0;
 
 const int FacesToFaces[6]= { 2, 3, 0, 1, 5, 4 };
 inline int checkBoundary( Particle particle, double* bbox )
@@ -57,8 +64,9 @@ long int GetParticleCellID( Mesh* FineMesh, DomainMesh *UberMesh, Particle* part
 
 	Particle np( part );
 
+	//if(RANK == 0 && ITERPRIME == 13631 ) cerr << "CELLID FUNC 4: " << np.x << " " << np.y << " " << np.z << " " << np.t << endl;
 	int stat = FineMesh->RK4( MBB, MBB, endTime, np );
-
+	//if(RANK == 0 && ITERPRIME == 13631 ) cerr << "stat: " << stat << endl;
 	if( stat == 0 ){ return -1; }
 
 	long int cellID = -1;
@@ -359,9 +367,9 @@ int AdvectParticleOnFlow( long int &cellID, Mesh *FineMesh, DomainMesh *UberMesh
 
 		// If the interpolation step has put us past the end time then euler backwards to get to end time.
 		if( part->t > endTime )
-		{
-			
+		{	
 			t = part->t;
+			
 			UberMesh->ReverseEulerCellAdvection( cellID, endTime, MBB, *part );
 			return 0;
 		}
@@ -419,8 +427,11 @@ void AdvectParticleList( Mesh* FineMesh, ParticleContainer* advectList, double e
 	
 	}
 }
-
-void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer* advectList, double endtime, double* MBB, int &total_lagrange, int &total_euler )
+#if DO_MPI
+void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer* advectList, double endtime, double* MBB, int &total_lagrange, int &total_euler, int rank, int numProcs)
+#else
+void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer* advectList, double endtime, double* MBB, int &total_lagrange, int &total_euler)
+#endif
 {
 
 	long int numParticles = advectList->getNumParticles();
@@ -430,10 +441,11 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 	int totalL = 0;
 	int totalE = 0;
 
-	#pragma omp parallel for shared ( nonZeroParticle, totalL, totalE ) schedule(dynamic,1) 
-	for( long int i = 0; i < numParticles; i++ ){
+	#pragma omp parallel for shared ( nonZeroParticle, totalL, totalE ) //schedule(dynamic,1)
+	for( long int i = 0; i < numParticles; i++ )
+	{
 
-		Particle &particle = advectList->particle[i];
+		Particle &particle = advectList->particle[i];	
 
 		long int cellID = GetParticleCellID( FineMesh, UberMesh, &particle, endtime, MBB );
 
@@ -461,7 +473,6 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 
 		while( status && count < (int)( endtime/stepsize ) )
 		{	
-
 			total++;
 
 			if( onCellFace )
@@ -522,7 +533,7 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 				euler++;
 					
 			}
-
+						
 			cellID = GetParticleCellID( FineMesh, UberMesh, &particle, endtime, MBB ); 
 			if( cellID == -1 )
 			{
@@ -534,7 +545,7 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 			}
 
 			status = ( particle.t >= endtime ) ? 0 : status;
-		}	
+		}
 
 
 		#pragma omp critical
