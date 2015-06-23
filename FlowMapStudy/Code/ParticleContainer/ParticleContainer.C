@@ -150,7 +150,7 @@ void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP, doub
 
 	numP = end_id-start_id;
 
-	fprintf(stderr, "Rank: %d of %d \t numP: %d \t start_id: %d \t end_id: %d \n", rank, numProcs, numP, start_id, end_id  );
+//	fprintf(stderr, "Rank: %d of %d \t numP: %d \t start_id: %d \t end_id: %d \n", rank, numProcs, numP, start_id, end_id  );
 
 #endif
 
@@ -187,7 +187,6 @@ void BuildParticleContainerFull( Mesh* mesh, Particle* &pl, long int &numP, doub
 		}
 	}
 #endif
-	cerr << "IN: " << pl[0].x << " " << pl[0].y << " " << pl[0].z << endl;
 
 }
 

@@ -46,6 +46,10 @@ using std::stringstream;
 #endif
 
 
+#ifndef DO_VMAG
+#define DO_VMAG 0
+#endif
+
 void serializeParticles(int start_id, int end_id, int size, double *message, ParticleContainer *advectList);
 void serializeParticles(int size, double *mailbox, Particle *particle);
 //Arguments:
@@ -65,6 +69,7 @@ void usage(char* argv[]){
 	cout << "-a(7)\t\tControls how to seed the mesh with particles and the advection process. Should be one of 0 through 7." << endl;
 	cout << "-step(0.001)\tStepsize for the Eulerian algorithm." << endl;
 	cout << "-c(10)\t\tNumber of samples in each of x, y and z directions. Requires -a flag to have a value of 7." << endl;
+	cout << "-d(0)\t\tWhich data set to run, 0 = small, 1 = Regular, 2 = large." << endl;
 	cout << "-u, -usage\tPrints this usage message." << endl;
 	cout << endl;
 }
@@ -94,9 +99,25 @@ int main( int argc, char** argv )
 
 	double Samples_cubic = 10;
 
+	int dataSet = 1;
+
 	long int fnx = 3;	
 	long int fny = 3;	
 	long int fnz = 2;
+
+    double xmin = -2.44577;
+    double ymin = -2.44577;
+    double zmin = -1.4629;
+    double xmax = -2.44577 + 4.89154;
+    double ymax = -2.44577 + 4.89154;
+    double zmax = -1.4629  + 2.92453;
+
+	double SampleXmax = xmax;
+	double SampleXmin = xmin;
+	double SampleYmax = ymax;
+	double SampleYmin = ymin;
+	double SampleZmax = zmax;
+	double SampleZmin = zmin;
 
 	for(int flag = argc; flag > 0; flag--){
 		if(!strcmp(argv[flag-1],"-nx")) fnx = atol( argv[flag] );
@@ -108,6 +129,7 @@ int main( int argc, char** argv )
 		if(!strcmp(argv[flag-1],"-a")) ADVECT_PARTICLES = atoi( argv[flag] );
 		if(!strcmp(argv[flag-1],"-step")) STEPSIZE = strtod( argv[flag], NULL );
 		if(!strcmp(argv[flag-1],"-c")) Samples_cubic = strtod (argv[flag], NULL );
+		if(!strcmp(argv[flag-1],"-d")) dataSet = atoi( argv[flag] );
 		if(!strcmp(argv[flag-1],"-u") || !strcmp(argv[flag-1],"-usage")){
 			usage(argv);
 			return 0;
@@ -183,28 +205,53 @@ int main( int argc, char** argv )
 
 // Number of Points in the XYZ dimensions
 // 10x10x10 cells
-    const long int nx = 300;
-    const long int ny = 300;
-    const long int nz = 300;
+	long int nx, ny, nz;
+
+	if( dataSet == 1 )
+	{
+		nx = 100;
+		ny = 100;
+		nz = 100;
+	}
+	else if( dataSet == 2 )
+	{
+		nx = 200;
+		ny = 200;
+		nz = 200;
+	}
+	else if( dataSet == 3 )
+	{
+		nx = 300;
+		ny = 300;
+		nz = 300;
+	}
+	else if( dataSet == 4 )
+	{
+		nx = 400;
+		ny = 400;
+		nz = 400;
+	}
+	else if( dataSet == 5 )
+	{
+		nx = 500;
+		ny = 500;
+		nz = 500;
+	}
+	else
+	{
+		nx = 300;
+		ny = 300;
+		nz = 300;
+	}
 
 	long int size = nx*ny*nz*3;
     double* v_field = new double [ size ];
 	float *buff = new float [ size ];
 
-// The minimum Corner of the Mesh
-    double xmin = -2.44577;
-    double ymin = -2.44577;
-    double zmin = -1.4629;
-
 // Step Size on Mesh
     double dx = 4.89154 / (nx-1);
     double dy = 4.89154 / (ny-1);
     double dz = 2.92453 / (nz-1);
-
-// The Maximum Corner of the Mesh
-    double xmax = -2.44577 + 4.89154;
-    double ymax = -2.44577 + 4.89154;
-    double zmax = -1.4629  + 2.92453;
 
 	double BoundBox[6] = { xmin, xmax, ymin, ymax, zmin, zmax };
 
@@ -216,7 +263,32 @@ int main( int argc, char** argv )
 
 		long int byteSize = size*sizeof(float);
 		
-		ifstream is( "/home/user/Research/DATA/nimrod", ios::in | ios::binary );
+		ifstream is;
+
+		if( dataSet == 1 )
+		{
+			is.open( "/home/user/Research/DATA/1to5hund/nimrod_100", ios::in | ios::binary );
+		}
+		else if( dataSet == 2 )
+		{
+			is.open( "/home/user/Research/DATA/1to5hund/nimrod_200", ios::in | ios::binary );
+		}
+		else if( dataSet == 3 )
+		{
+			is.open( "/home/user/Research/DATA/1to5hund/nimrod_300", ios::in | ios::binary );
+		}
+		else if( dataSet == 4 )
+		{
+			is.open( "/home/user/Research/DATA/1to5hund/nimrod_400", ios::in | ios::binary );
+		}
+		else if( dataSet == 5 )
+		{
+			is.open( "/home/user/Research/DATA/1to5hund/nimrod_500", ios::in | ios::binary );
+		}
+		else
+		{
+			is.open( "/home/user/Research/DATA/ORIGIONAL/nimrod", ios::in | ios::binary );
+		}
 
 		is.read( reinterpret_cast<char*>(buff), byteSize );
 
@@ -234,6 +306,13 @@ int main( int argc, char** argv )
 	}
 #endif
 
+#if DO_VMAG
+	double magMin = 999999999;
+	double magMax = 0.0;
+	double magSum = 0.0;
+	int numberZeroMag = 0;
+#endif
+
     for( long int z = 0; z < nz; z++ ){
         for( long int y = 0; y < ny; y++ ){
             for( long int x = 0; x < nx; x++ )
@@ -245,9 +324,53 @@ int main( int argc, char** argv )
                 v_field[ id+1 ] = buff[id+1];
                 v_field[ id+2 ] = buff[id+2];
 
+#if DO_VMAG
+				double mag = buff[id]*buff[id] + buff[id+1]*buff[id+1] + buff[id+2]*buff[id+2];
+
+
+				if( mag == 0.0 )
+				{
+					numberZeroMag++;
+				}
+				else
+				{
+					magSum += sqrt(mag);
+					if( magMin > mag )
+					{
+						magMin = mag;
+					}
+
+					if( magMax < mag )
+					{
+						magMax = mag;
+					}
+				}
+#endif
+
             }
         }
     }
+
+#if DO_VMAG
+	int numberVs = nx*ny*nz - numberZeroMag;
+	double avg = magSum / ( (numberVs==0) ? 1 : numberVs );
+	if( avg == magSum ) cerr << "Error" << endl;
+
+	cerr << "Min Mag: " << magMin << endl;
+	cerr << "Avg Mag: " << avg << endl;
+	cerr << "Max Mag: " << magMax << endl;
+
+	cerr << "AVG: StepSize with Z: " << ((0.8)*((double)(xmax-xmin)/nx) + (0.2)*((double)(zmax-zmin)/nz))/avg << endl;
+	cerr << "AVGH: StepSize with Z: " << ((0.8)*((double)(xmax-xmin)/(2*nx)) + (0.2)*((double)(zmax-zmin)/(2*nz)))/avg << endl;
+	cerr << "AVG: StepSize no Z  : " << (((double)(xmax-xmin)/nx))/avg << endl;
+	cerr << "MIN: StepSize with Z: " << ((0.8)*((double)(xmax-xmin)/nx) + (0.2)*((double)(zmax-zmin)/nz))/magMin << endl;
+	cerr << "MIN: StepSize no Z  : " << (((double)(xmax-xmin)/nx))/magMin << endl;
+	cerr << "MAX: StepSize with Z: " << ((0.8)*((double)(xmax-xmin)/nx) + (0.2)*((double)(zmax-zmin)/nz))/magMax << endl;
+	cerr << "MAX: StepSize no Z  : " << (((double)(xmax-xmin)/nx))/magMax << endl;
+ 
+	exit(0);
+
+#endif
 
 	if( buff != NULL ) delete [] buff;
 
@@ -414,21 +537,12 @@ int main( int argc, char** argv )
 			int cbe = 3;
 			int numParticlesPerCube = 27;
 
-			double SampleXmax = 1.0;
-			double SampleXmin = 1.0;
-			double SampleYmax = 1.0;
-			double SampleYmin = 1.0;
-			double SampleZmax = 0.75;
-			double SampleZmin = 0.75;
-
 			double samDx = (SampleXmax-SampleXmin)/(double)numSamples;
 			double samDy = (SampleYmax-SampleYmin)/(double)numSamples;
 			double samDz = (SampleZmax-SampleZmin)/(double)numSamples;
 			double deltaX = 0.01*samDx;
 			double deltaY = 0.01*samDy;
 			double deltaZ = 0.01*samDz;
-
-			cerr << samDx << " " << samDy << " " << samDz << endl;
 
 			double totalLagrange = 0.0;
 			double totalEuler = 0.0;
@@ -439,6 +553,7 @@ int main( int argc, char** argv )
 			int totalL = 0;
 			int totalE = 0;
 
+cerr << "looping over samples" << endl;
 			for( int samplesZ = 0; samplesZ < numSamples; samplesZ++ ){
 				for( int samplesY = 0; samplesY < numSamples; samplesY++ ){
 					for( int samplesX = 0; samplesX < numSamples; samplesX++ )
@@ -464,7 +579,7 @@ int main( int argc, char** argv )
 						GET_TIME( eul_end );
 
 						GET_TIME( lag_start );
-						//DEBUG AdvectParticleList( &FineMesh, &UberMesh, &advectListL, EndTime, BoundBox, totalL, totalE );
+						AdvectParticleList( &FineMesh, &UberMesh, &advectListL, EndTime, BoundBox, totalL, totalE );
 						GET_TIME( lag_end );
 
 						totalLagrange += lag_end-lag_start;
@@ -531,7 +646,6 @@ int main( int argc, char** argv )
 			GET_TIME (Lagrange_Full_Start );
 			#if DO_MPI
 			AdvectParticleList( &FineMesh, &UberMesh, &advectList, EndTime, BoundBox, totalL, totalE, rank, numProcs );
-			cerr << "Never touched." << endl;
 			#else	
 			AdvectParticleList( &FineMesh, &UberMesh, &advectList, EndTime, BoundBox, totalL, totalE );
 			#endif
@@ -622,7 +736,6 @@ int main( int argc, char** argv )
 					memset(mailbox, 0.0, 4*totalNumP*sizeof(double));
 
 
-					fprintf( stderr, "LOOK AT ME 2: %d %d %d \n", rank, start_id, end_id );
 					serializeParticles(start_id, end_id, totalNumP, message, &advectList);
 
 					MPI_Allreduce(message, mailbox, totalNumP*4, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);						
@@ -830,8 +943,6 @@ void serializeParticles(int size, double *mailbox, Particle *particle){
 	}
 }
 void serializeParticles(int start_id, int end_id, int size, double *message, ParticleContainer *advectList){
-
-	fprintf( stderr, "seriealizeParticles: %d -> %d in %d\n", start_id, end_id, size );
 
 	for(int i = 0; i < size; i++)
 	{

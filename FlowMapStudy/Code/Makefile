@@ -15,7 +15,8 @@ COMPILE_FLAGS=-fopenmp
 INCLUDE_DIRS=-IDomainMesh/ -IFlow/ -IMesh/ -IParticle/ -IParticleContainer/ -IPrintVTK/ -IProblem/
 
 tokC=Problem/Tokamak.C
-stokC=Problem/Tokamak_small.C
+fisC=Problem/Fishtank.C
+astC=Problem/Astro.C
 
 domC=DomainMesh/DomainMesh.C
 domH=DomainMesh/DomainMesh.h
@@ -69,16 +70,17 @@ DO_MPI=0
 
 VARS=-Depsilon=$(EPSILON) -DDO_MPI=$(DO_MPI)
 
-all: DIRS Tokamak TokamakS
+all: DIRS Tokamak Fishtank Astro
 
 DIRS:
 	@mkdir bin -p
 
 Tokamak: $(tokC) $(OBJ)
 	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(tokC) $(OBJ) -o bin/runTokamak.out
-
-TokamakS: $(stokC) $(OBJ)
-	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(stokC) $(OBJ) -o bin/runTokamak_small.out
+Fishtank: $(fisC) $(OBJ)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(fisC) $(OBJ) -o bin/runFishtank.out
+Astro: $(astC) $(OBJ)
+	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) $(astC) $(OBJ) -o bin/runAstro.out
 
 $(ptkO): $(ptkH) $(ptkC)
 	$(CPP_COMPILER) $(COMPILE_FLAGS) $(OPLVL) $(INCLUDE_DIRS) $(VARS) -c $(ptkC) -o $(ptkO)

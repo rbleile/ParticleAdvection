@@ -408,7 +408,9 @@ void AdvectParticleList( Mesh* FineMesh, ParticleContainer* advectList, double e
 {
 	long int numParticles = advectList->getNumParticles();
 
-	#pragma omp parallel for
+	int chunkSize = (int)((numParticles/8.0)*0.1);
+	if( chunkSize < 1) chunkSize = 1;
+	#pragma omp parallel for schedule (dynamic,chunkSize)
 	for( long int i = 0; i < numParticles; i++ )
 	{
 		int count = 0;
@@ -420,13 +422,14 @@ void AdvectParticleList( Mesh* FineMesh, ParticleContainer* advectList, double e
 			continue;
 		}
 
-		while( status )
+		while( status == 1 )
 		{
 			status = FineMesh->RK4( MBB, MBB, endtime, particle ); 
 		}
 	
 	}
 }
+
 #if DO_MPI
 void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer* advectList, double endtime, double* MBB, int &total_lagrange, int &total_euler, int rank, int numProcs)
 #else
@@ -441,7 +444,10 @@ void AdvectParticleList( Mesh *FineMesh, DomainMesh *UberMesh, ParticleContainer
 	int totalL = 0;
 	int totalE = 0;
 
-	#pragma omp parallel for shared ( nonZeroParticle, totalL, totalE ) //schedule(dynamic,1)
+	int chunkSize = (int)((numParticles/8.0)*0.1);
+
+	if( chunkSize < 1) chunkSize = 1;
+	#pragma omp parallel for shared ( nonZeroParticle, totalL, totalE ) schedule(dynamic,chunkSize)
 	for( long int i = 0; i < numParticles; i++ )
 	{
 
